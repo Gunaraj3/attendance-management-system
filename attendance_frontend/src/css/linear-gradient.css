@@ -1,0 +1,10 @@
+.blue-gradient{
+    background: rgb(24,14,182);
+    background: linear-gradient(90deg, rgba(24,14,182,1) 0%, rgba(0,82,255,1) 100%);
+}
+a{
+    text-decoration: none;
+}
+.active{
+    text-decoration: underline red;
+}

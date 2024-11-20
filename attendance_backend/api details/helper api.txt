@@ -1,0 +1,15 @@
+//verify token      [all user]
+url: /verifyToken
+method: get
+
+//login    [all user]
+url: /login
+method: post
+data={
+    email:"manishkdka123@gmail.com"
+    password:"*******"
+}
+
+//logout [all user]
+url: /logout
+method:get

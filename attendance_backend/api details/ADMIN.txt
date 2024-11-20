@@ -1,0 +1,102 @@
+
+//ADMIN ADD 
+url: /admin/add
+method: POST
+data={
+    email:"manishkdka123@gmail.com",
+    password: "********"
+}
+
+//GET ALL Batch
+url: /admin/batch
+method: GET
+
+//ADD BATCH 
+url: /admin/batch
+method: post
+data={
+    name:"Nepalaya class of 2023",
+    course:"database"
+}
+
+//GET BATCH DETAIL
+url: /admin/batch/:batchId
+method: GET
+
+//GET ALL TEACHER
+url: /admin/teacher
+method: GET
+
+//ADD TEACHER
+url: /admin/teacher
+method: post
+data={
+    name:"Ram",
+    email:"ram123@gmail.com",
+    password:"********"
+}
+
+//GET TEACHER DETAIL
+url: /admin/teacher/:batchId
+method: GET
+
+//Assign teacher to class
+url: /admin/:teacherId/:batchId
+method: PUT
+
+//UnAssign teacher
+url: /admin/:teacherId/:batchId
+method:patch
+
+//GET ALL STUDENT
+url: /admin/student
+method: GET
+
+//ADD STUDENT
+url: /admin/student
+method: post
+data={
+    name:"Ram",
+    email:"ram123@gmail.com",
+    password:"********",
+}
+
+//GET STUDENT DETAIL
+url: /admin/student/:batchId
+method: GET
+
+//Assign student to class
+url: /admin/:studentId/:batchId
+method: PUT
+
+//update teacher
+url: /admin/teacher/:teacherId
+method: PUT
+FORMAT OF DATA TO SEND IN REQ BODY
+req.body={
+    data:{
+        name:"newname",
+    }
+}
+//update student
+url: /admin/student/:studentId
+method: PUT
+FORMAT OF DATA TO SEND IN REQ BODY
+req.body={
+    data:{
+        name:"newname",
+    }
+}
+
+//delete teacher
+url: /admin/teacher/:teacherId
+method: delete
+
+//delete student
+url: /admin/student/:studentId
+method: delete
+
+
+//update course
+url: /admin/batch/:batchId
+method:PUT

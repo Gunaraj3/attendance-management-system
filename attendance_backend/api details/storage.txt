@@ -1,0 +1,3 @@
+mongodb atlas database name=attendance-system-final
+username=manish
+password=root

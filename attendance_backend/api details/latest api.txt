@@ -1,0 +1,14 @@
+//delete admin
+url: /admin/:adminId
+method: delete
+
+
+//update admin
+url: /admin/:adminId
+method: PUT
+FORMAT OF DATA TO SEND IN REQ BODY
+req.body={
+    data:{
+        email:"newemail123@gmail.com"
+    }
+}

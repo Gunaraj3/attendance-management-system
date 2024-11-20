@@ -1,0 +1,38 @@
+//show students for attendance [admin,teacher]
+url: /attendance/studentList/:batchId
+method: get
+
+//submit Attendance           [admin,teacher]
+url: /attendance/submit/:batchId
+method: post
+req.body={                  //frontend le req.body.data garera backend lai array of object pathauxa
+    data:[
+    {
+        studentId: 545454646,
+        name: "placeholder",
+        status: enum[0,1,2]      //0 represents present , 1 represents absent , 2 represents leave
+    },
+    {
+        studentId: 62626234,
+        name:"placeholder",
+        status: enum[0,1,2]
+    }
+    ]
+}
+
+//get all attendance [admin,teacher]
+url: attendance/:batchId
+method: get
+
+
+//get attendance by date[admin,teacher]
+url: attendance/:batchId/:year/:month
+method:get
+
+//export all report to excel        [admin,teacher]
+url: attendance/export/:batchId
+method: get
+
+//export  report to excel by date       [admin,teacher]
+url: attendance/export/:batchId/:year/:month
+method: get

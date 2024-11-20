@@ -1,0 +1,13 @@
+
+
+//teacher logout
+url: /teacher/logout
+method: get
+
+//update password
+url: /teacher/update-password
+method: post
+
+//show all batches
+url: /teacher/batch
+method: get

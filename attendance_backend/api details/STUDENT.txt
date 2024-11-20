@@ -1,0 +1,22 @@
+
+
+//student logout
+url: /student/logout
+method: get
+
+//update password
+url: /student/update-password
+method: post
+
+//show the detail of student
+url: /student-detail
+method: get
+
+//show students enrolled class details
+url: /student/class
+method:get
+
+//show attendance of a particular class
+url: /attendance-detail/:batchId
+method:get
+
