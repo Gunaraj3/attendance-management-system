@@ -1,54 +1,54 @@
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Stack from "@mui/material/Stack";
-import Grid from "@mui/material/Stack";
-import { useEffect, useState } from "react";
-import { useNavigate, Route, Navigate } from "react-router-dom";
-import Paper from "@mui/material/Paper";
-// import MaterialTable from "material-table";
-// import Table from "../../components/Table";
-// import useLocalStorage from "../../../../attendance_backend/src/hooks/useLocalStorage";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  InputAdornment,
+  Tabs,
+  Tab,
+  Stack,
+  CircularProgress,
+} from "@mui/material";
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import MenuBookRoundedIcon from "@mui/icons-material/MenuBookRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { useAuth } from "../../context/auth";
-import { Snackbar } from "@mui/material";
-import MuiAlert from "@mui/material/Alert";
-import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
 import Toastify from "../../components/Toastify";
 
 const TeacherLogin = () => {
-  let [email, setEmail] = useState("");
-  let [password, setPassword] = useState("");
-  let [emailErrors, setEmailErrors] = useState([]);
-  let [passwordErrors, setPasswordErrors] = useState([]);
-  let [isEmailError, setIsEmailError] = useState(false);
-  let [isPasswordError, setIsPasswordError] = useState(false);
-  let [openToast, setOpenToast] = useState(false);
-  let [toastMessage, setToastMessage] = useState();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [emailErrors, setEmailErrors] = useState([]);
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [isEmailError, setIsEmailError] = useState(false);
+  const [isPasswordError, setIsPasswordError] = useState(false);
+  const [openToast, setOpenToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   const user = useAuth();
+  const navigate = useNavigate();
 
-  const handleOpenToast = () => {
-    setOpenToast(true);
-  };
-
-  const handleCloseToast = () => {
-    setOpenToast(false);
-  };
+  const handleOpenToast = () => setOpenToast(true);
+  const handleCloseToast = () => setOpenToast(false);
 
   function required(event, errors) {
-    if (event.target.value === "") {
+    if (event.target.value.trim() === "") {
       errors.push(`${event.target.name} is required`);
     }
   }
 
   function checkEmailFormat(event, errors) {
-    if (
-      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
-        event.target.value
-      )
-    ) {
-      errors.push(` invalid email format`);
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(event.target.value)) {
+      errors.push("Invalid email format");
     }
   }
 
@@ -57,154 +57,248 @@ const TeacherLogin = () => {
     password: [required],
   };
 
-  async function handleChange(e) {
-    if (e.target.name === "email") {
-      handleEmailChange(e);
-    } else if (e.target.name === "password") {
-      handlePasswordChange(e);
-    }
+  function handleEmailChange(e) {
+    setEmail(e.target.value);
+    let errors = [];
+    checks.email.forEach((v) => v(e, errors));
+    setIsEmailError(errors.length !== 0);
+    setEmailErrors(errors);
   }
 
   function handlePasswordChange(e) {
     setPassword(e.target.value);
     let errors = [];
-
-    checks.password.forEach((v) => {
-      v(e, errors);
-      // if (v === "required") {
-      //   if (e.target.value === "") {
-      //     errors.push("password is required");
-      //   }
-      // }
-    });
-    if (errors.length === 0) {
-      setIsPasswordError(false);
-    } else {
-      setIsPasswordError(true);
-    }
+    checks.password.forEach((v) => v(e, errors));
+    setIsPasswordError(errors.length !== 0);
     setPasswordErrors(errors);
   }
 
-  function handleEmailChange(e) {
-    setEmail(e.target.value);
+  async function handleSubmit(e) {
+    if (e) e.preventDefault();
 
-    let errors = [];
+    let eErrors = [];
+    let pErrors = [];
 
-    checks.email.forEach((v) => {
-      v(e, errors);
-      // if (v === "required") {
-      //   if (e.target.value === "") {
-      //     errors.push("email is required");
-      //   }
-      // }
-    });
-    if (errors.length !== 0) {
+    if (!email) {
+      eErrors.push("Email is required");
       setIsEmailError(true);
-    } else {
-      setIsEmailError(false);
     }
-    setEmailErrors(errors);
-  }
+    if (!password) {
+      pErrors.push("Password is required");
+      setIsPasswordError(true);
+    }
 
-  async function handleSubmit() {
-    if (email === "" || password === "") {
-      console.log(emailErrors);
-      if (email === "" && !emailErrors.includes("email is required")) {
-        setIsEmailError(true);
-        setEmailErrors([...emailErrors, "email is required"]);
-      }
-      if (password === "" && !passwordErrors.includes("password is required")) {
-        setIsPasswordError(true);
-        setPasswordErrors([...passwordErrors, "password is required"]);
-      }
+    if (eErrors.length > 0 || pErrors.length > 0) {
+      setEmailErrors(eErrors);
+      setPasswordErrors(pErrors);
       return;
     }
-    if (emailErrors.length !== 0 || passwordErrors.length !== 0) {
-      console.log("cannot call error is there");
-      return;
-    }
-    const da = await user.login({ email, password }, "/teacher/batch");
-    console.log("da", da);
-    if (!da.success) {
+
+    if (isEmailError || isPasswordError) return;
+
+    setLoading(true);
+    try {
+      const da = await user.login({ email, password }, "/teacher/batch");
+      if (da && !da.success) {
+        setOpenToast(true);
+        setToastMessage(da.message || "Invalid email or password");
+      }
+    } catch (err) {
       setOpenToast(true);
-      setToastMessage(da.message);
+      setToastMessage("An error occurred during sign in");
+    } finally {
+      setLoading(false);
     }
   }
-  console.log("toastOpen", openToast);
-
-  const paperStyle = {
-    padding: "50px",
-    width: 280,
-
-    margin: "20px auto",
-  };
 
   return (
-    <div style={{ paddingTop: "77px" }}>
-      <Paper elevation={10} style={paperStyle}>
-        <h1 align="center">Login In</h1>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#F8FAFC",
+        backgroundImage: "radial-gradient(at 10% 20%, rgba(5, 150, 105, 0.08) 0px, transparent 40%), radial-gradient(at 90% 80%, rgba(14, 165, 233, 0.08) 0px, transparent 40%)",
+        p: 2.5,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 460,
+          borderRadius: "24px",
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.08)",
+          overflow: "hidden",
+          p: { xs: 3.5, sm: 4.5 },
+          backgroundColor: "#FFFFFF",
+        }}
+      >
+        {/* Top Back & Role Tabs */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+          <Button
+            size="small"
+            startIcon={<ArrowBackRoundedIcon />}
+            onClick={() => navigate("/")}
+            sx={{ color: "text.secondary", fontWeight: 600 }}
+          >
+            Home
+          </Button>
 
-        <TextField
-          error={isEmailError ? true : false}
-          style={{ marginTop: "20px" }}
-          onChange={handleChange}
-          value={email}
-          id="standard-basic"
-          label="email*"
-          variant="standard"
-          fullWidth={true}
-          name="email"
-        />
-        {emailErrors.length !== 0 &&
-          emailErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
+          <Tabs
+            value="teacher"
+            onChange={(e, val) => navigate(`/${val}/login`)}
+            sx={{
+              minHeight: 36,
+              "& .MuiTabs-indicator": { display: "none" },
+            }}
+          >
+            <Tab
+              value="admin"
+              label="Admin"
+              sx={{ minHeight: 32, px: 1.5, py: 0.5, fontSize: "0.75rem", fontWeight: 600, color: "#64748B" }}
+            />
+            <Tab
+              value="teacher"
+              label="Teacher"
+              sx={{
+                minHeight: 32,
+                px: 1.5,
+                py: 0.5,
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                borderRadius: "8px",
+                backgroundColor: "#F0FDF4",
+                color: "#16A34A !important",
+              }}
+            />
+            <Tab
+              value="student"
+              label="Student"
+              sx={{ minHeight: 32, px: 1.5, py: 0.5, fontSize: "0.75rem", fontWeight: 600, color: "#64748B" }}
+            />
+          </Tabs>
+        </Box>
 
-        <TextField
-          error={isPasswordError ? true : false}
-          onChange={handleChange}
-          value={password}
-          type="password"
-          id="standard-basic"
-          label="password*"
-          variant="standard"
-          fullWidth
-          name="password"
-          style={{ marginTop: "20px" }}
-        />
-        {passwordErrors.length !== 0 &&
-          passwordErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
+        {/* Brand & Title */}
+        <Box sx={{ textAlign: "center", mb: 3.5 }}>
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, #059669 0%, #10B981 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 2,
+              boxShadow: "0 10px 20px -5px rgba(5, 150, 105, 0.35)",
+            }}
+          >
+            <MenuBookRoundedIcon sx={{ fontSize: 32, color: "#FFFFFF" }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.01em" }}>
+            Teacher Portal
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#64748B", mt: 0.5 }}>
+            Sign in to mark daily attendance and view class records
+          </Typography>
+        </Box>
 
-        <Button
-          variant="contained"
-          style={{ marginTop: "30px" }}
-          fullWidth={true}
-          onClick={handleSubmit}
-        >
-          Login
-        </Button>
+        {/* Login Form */}
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+                Teacher Email
+              </Typography>
+              <TextField
+                fullWidth
+                name="email"
+                placeholder="teacher@school.com"
+                value={email}
+                onChange={handleEmailChange}
+                error={isEmailError}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailOutlinedIcon sx={{ color: "#94A3B8", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {emailErrors.map((err, i) => (
+                <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                  {err}
+                </Typography>
+              ))}
+            </Box>
+
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+                Password
+              </Typography>
+              <TextField
+                fullWidth
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••••••"
+                value={password}
+                onChange={handlePasswordChange}
+                error={isPasswordError}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon sx={{ color: "#94A3B8", fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowPassword(!showPassword)} edge="end">
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {passwordErrors.map((err, i) => (
+                <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                  {err}
+                </Typography>
+              ))}
+            </Box>
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{
+                py: 1.4,
+                borderRadius: "12px",
+                fontWeight: 700,
+                fontSize: "0.9375rem",
+                background: "linear-gradient(135deg, #059669 0%, #10B981 100%)",
+                mt: 1,
+              }}
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : "Sign In to Teacher Studio"}
+            </Button>
+          </Stack>
+        </form>
       </Paper>
 
       <Toastify
-        handleOpen={handleOpenToast}
+        open={openToast}
         handleClose={handleCloseToast}
         message={toastMessage}
         severity="error"
-        open={openToast}
-      ></Toastify>
-    </div>
+      />
+    </Box>
   );
 };
 

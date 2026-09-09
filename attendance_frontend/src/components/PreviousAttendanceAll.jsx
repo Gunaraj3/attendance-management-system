@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/auth";
 import { useParams } from "react-router-dom";
 import {
-  IconButton,
   Paper,
   Stack,
   Table,
@@ -11,454 +10,387 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
+  Autocomplete,
+  Button,
+  Box,
+  Typography,
+  Chip,
+  CircularProgress,
+  InputAdornment,
 } from "@mui/material";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import SyncRoundedIcon from "@mui/icons-material/SyncRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import Toastify from "./Toastify";
-import SendIcon from "@mui/icons-material/Send";
-import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
-import Button from "@mui/material/Button";
-import DownloadIcon from "@mui/icons-material/Download";
 
 const PreviousAttendanceAll = () => {
-  let [batchReport, setBatchReport] = useState([]);
-  let [toastMessage, setToastMessage] = useState();
-  let [severity, setSeverity] = useState();
-  let [openToast, setOpenToast] = useState(false);
-  let [dat, setDat] = useState();
-  let [columns, setColumns] = useState([]);
-  let [studentRep, setStudentRep] = useState([]);
-  let [data, setData] = useState([]);
-  let [inputYear, setInputYear] = useState([
-    new Date().toISOString().split("-")[0],
-  ]);
-  let [valueYear, setValueYear] = useState([
-    new Date().toISOString().split("-")[0],
-  ]);
-  let [inputMonth, setInputMonth] = useState([
-    new Date().toISOString().split("-")[1],
-  ]);
-  let [valueMonth, setValueMonth] = useState([
-    new Date().toISOString().split("-")[1],
-  ]);
+  const [data, setData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [studentRep, setStudentRep] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const [inputValue, setInputValue] = React.useState(
-    new Date().toISOString().split("-")[1]
-  );
+  const currentYear = new Date().getFullYear().toString();
+  const currentMonth = (new Date().getMonth() + 1).toString();
 
-  const handleOpenToast = () => {
-    setOpenToast(true);
-  };
+  const [inputYear, setInputYear] = useState(currentYear);
+  const [inputMonth, setInputMonth] = useState(currentMonth);
 
-  const handleCloseToast = () => {
-    setOpenToast(false);
-  };
+  const [toastMessage, setToastMessage] = useState("");
+  const [severity, setSeverity] = useState("info");
+  const [openToast, setOpenToast] = useState(false);
 
-  let { batchId } = useParams();
-  let user = useAuth();
+  const { batchId } = useParams();
+  const user = useAuth();
+
+  const handleOpenToast = () => setOpenToast(true);
+  const handleCloseToast = () => setOpenToast(false);
+
+  const months = [
+    { label: "January", value: "1" },
+    { label: "February", value: "2" },
+    { label: "March", value: "3" },
+    { label: "April", value: "4" },
+    { label: "May", value: "5" },
+    { label: "June", value: "6" },
+    { label: "July", value: "7" },
+    { label: "August", value: "8" },
+    { label: "September", value: "9" },
+    { label: "October", value: "10" },
+    { label: "November", value: "11" },
+    { label: "December", value: "12" },
+  ];
+
+  const years = Array.from({ length: 15 }, (_, i) => (2020 + i).toString());
 
   async function fetchStudentsReport() {
-    let headersList = {
-      "Content-type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
+    setLoading(true);
+    try {
+      let headersList = {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
 
-    let response = await fetch(
-      "http://localhost:8000/attendance/" +
-        batchId +
-        "/" +
-        inputYear +
-        "/" +
-        inputMonth,
-      {
-        method: "GET",
-        headers: headersList,
-      }
-    );
-
-    let data = await response.json();
-    console.log(data, "insdie get previous student");
-
-    setData(data.result);
-
-    let dates = new Set();
-
-    let nm = new Set();
-    console.log("data.........", data);
-
-    data.result.forEach((v, id) => {
-      if (v.studentId) {
-        nm.add(v.studentId._id + "-" + v.studentId.name);
-        dates.add(v.date);
-      }
-    });
-
-    let unique = [...dates];
-    console.log("nm........", [...nm]);
-    console.log("un........", unique);
-
-    let studentsd = {};
-    let columns = new Set();
-    let names = new Set();
-    let res = data.result.map((v) => {
-      // let a = {
-      //   name: v.name,
-      //   status: "P",
-      //   studentId: v._id,
-      // };
-      columns.add(v.date.split("T")[0]);
-
-      if (v.studentId) {
-        names.add(v.studentId.name);
-        if (studentsd[v.studentId.name]) {
-          studentsd[v.studentId.name].push(
-            v.status 
-          );
-        } else {
-          studentsd[v.studentId.name] = [
-            v.status 
-          ];
+      let response = await fetch(
+        `http://localhost:8000/attendance/${batchId}/${inputYear}/${inputMonth}`,
+        {
+          method: "GET",
+          headers: headersList,
         }
+      );
+
+      let res = await response.json();
+      if (res.success && res.result) {
+        setData(res.result);
+
+        let dates = new Set();
+        let nm = new Set();
+
+        res.result.forEach((v) => {
+          if (v.studentId) {
+            nm.add(v.studentId._id + "---" + v.studentId.name);
+          }
+          if (v.date) {
+            dates.add(v.date);
+          }
+        });
+
+        // Sort dates chronologically
+        const sortedDates = [...dates].sort();
+        setColumns(sortedDates);
+        setStudentRep([...nm]);
+      } else {
+        setData([]);
+        setColumns([]);
+        setStudentRep([]);
       }
-
-      // return a;
-    });
-
-    console.log(studentsd, "studentsd.................");
-    console.log(Object.entries(studentsd), "studentsd.................");
-    // console.log(...columns, "date coluns........");
-
-    setColumns(unique);
-
-    // setBatchReport([...names]);
-    setStudentRep([...nm]);
-
-    // setBatchReport(studentsd);
+    } catch (e) {
+      console.error(e);
+      setSeverity("error");
+      setToastMessage("Failed to fetch historical attendance data");
+      handleOpenToast();
+    } finally {
+      setLoading(false);
+    }
   }
 
-  //   async function register() {
-  //     let headersList = {
-  //       "Content-type": "application/json",
-  //       Authorization: `Bearer ${user.token()}`,
-  //     };
-
-  //     let bodyContent = JSON.stringify({ data: batchStudent });
-  //     let data;
-  //     try {
-  //       let response = await fetch("http://localhost:8000/attendance/submit/", {
-  //         method: "post",
-  //         headers: headersList,
-  //         body: bodyContent,
-  //       });
-
-  //       data = await response.json();
-  //     } catch (e) {
-  //       setOpenToast(true);
-  //       setToastMessage("something went wrong");
-  //       setSeverity("error");
-  //       handleClose();
-  //     }
-  //     if (data.success) {
-  //       setOpenToast(true);
-  //       setToastMessage(data.message);
-  //       setSeverity("success");
-  //       handleClose();
-  //     } else {
-  //       setOpenToast(true);
-  //       setToastMessage(data.message);
-  //       setSeverity("error");
-  //       handleClose();
-  //     }
-
-  //     console.log(data, "previous attendance");
-  //   }
-
-  const getAttendanceStatus = (id, date) => {
-    console.log(data, "data......................");
-    const attendanceRecord = data.find((item) => {
+  const getAttendanceStatus = (studentId, date) => {
+    const record = data.find((item) => {
       if (item.studentId) {
-        return item.studentId._id === id && item.date === date;
+        return item.studentId._id === studentId && item.date === date;
       }
-
       return false;
     });
 
-    // if (attendanceRecord) {
-    //   return attendanceRecord.isPresent ? 'Present' : 'Absent';
-    // }
-
-    console.log("attendanceRecord ................", attendanceRecord);
-
-    if (!attendanceRecord) {
-      return "N";
-    }
-
-    return attendanceRecord.status 
-    // === 0
-    //   ? "P"
-    //   : attendanceRecord.status === 1
-    //   ? "A"
-    //   : attendanceRecord.status === 2
-    //   ? "L"
-    //   : "N";
+    if (!record) return "N";
+    return record.status || "N";
   };
 
   useEffect(() => {
     fetchStudentsReport();
-  }, []);
-
-  const yrs = function () {
-    let dates = [];
-
-    let start = 2010;
-    let end = parseInt(new Date().toISOString().split("-")[0]);
-
-    for (let i = start; i <= end; i++) {
-      dates.push(i.toString());
-    }
-
-    return dates;
-  };
-
-  console.log("inputYear.....", inputYear);
-  console.log("inputMonth.....", inputMonth);
-
-  const mon = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-  const yr = yrs();
+  }, [batchId]);
 
   async function download() {
-    let headersList = {
-      Authorization: `Bearer ${user.token()}`,
-      "Content-type": "text/csv",
-    };
+    setDownloading(true);
+    try {
+      let headersList = {
+        Authorization: `Bearer ${user.token()}`,
+        "Content-type": "text/csv",
+      };
 
-    let response = await fetch(
-      "http://localhost:8000/attendance/export/" +
-        batchId +
-        "/" +
-        inputYear +
-        "/" +
-        inputMonth,
-      {
-        method: "GET",
-        headers: headersList,
-      }
-    );
+      let response = await fetch(
+        `http://localhost:8000/attendance/export/${batchId}/${inputYear}/${inputMonth}`,
+        {
+          method: "GET",
+          headers: headersList,
+        }
+      );
 
-    console.log(response, "response csv.............");
-    let blob = await response.blob();
-    console.log(data, "data is important ...........");
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "data.csv");
-    document.body.appendChild(link);
-    link.click(); 
-    document.body.removeChild(link);
+      let blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `attendance-batch-${batchId}-${inputYear}-${inputMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSeverity("success");
+      setToastMessage("Attendance CSV report downloaded successfully");
+      handleOpenToast();
+    } catch (e) {
+      setSeverity("error");
+      setToastMessage("Failed to download attendance CSV report");
+      handleOpenToast();
+    } finally {
+      setDownloading(false);
+    }
   }
+
+  const renderStatusBadge = (status) => {
+    if (status === "P" || status === "p") {
+      return (
+        <Chip
+          label="P"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#F0FDF4",
+            color: "#16A34A",
+            border: "1px solid #BBF7D0",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    if (status === "A" || status === "a") {
+      return (
+        <Chip
+          label="A"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#FFF1F2",
+            color: "#E11D48",
+            border: "1px solid #FECDD3",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    if (status === "L" || status === "l") {
+      return (
+        <Chip
+          label="L"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#FFFBEB",
+            color: "#D97706",
+            border: "1px solid #FDE68A",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    return (
+      <Typography variant="caption" sx={{ color: "#CBD5E1", fontWeight: 700 }}>
+        —
+      </Typography>
+    );
+  };
+
+  const filteredStudentRep = studentRep.filter((item) => {
+    const studentName = item.split("---")[1] || "";
+    return studentName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   return (
-    <div>
-      <Stack direction={"row"} spacing={9} sx={{ marginBottom: "15px" }}>
-        <Autocomplete
-          inputValue={inputYear}
-          onInputChange={(event, newInputYear) => {
-            setInputYear(newInputYear);
-          }}
-          id="controllable-states-demo"
-          options={yr}
-          value={valueYear}
-          onChange={(e, nv) => {
-            setValueYear(nv);
-          }}
-          sx={{ width: 300 }}
-          renderInput={(params) => <TextField {...params} label="Year" />}
-        />
-        <Autocomplete
-          inputValue={inputMonth}
-          onInputChange={(event, newInputValue) => {
-            setInputMonth(newInputValue);
-          }}
-          id="controllable-states-demo"
-          options={mon}
-          value={valueMonth}
-          onChange={(event, newValue) => {
-            setValueMonth(newValue);
-          }}
-          sx={{ width: 300 }}
-          renderInput={(params) => <TextField {...params} label="Month" />}
-          // <Button onClick={()=>fetchStudentsReport()}>fetch</Button>
-        />
+    <Box>
+      {/* Filter & Toolbar Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          mb: 3,
+          borderRadius: "16px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+        }}
+      >
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }} justifyContent="space-between">
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} flexWrap="wrap">
+            <Autocomplete
+              value={inputYear}
+              onChange={(e, val) => setInputYear(val || currentYear)}
+              options={years}
+              sx={{ width: { xs: "100%", sm: 150 } }}
+              renderInput={(params) => <TextField {...params} label="Select Year" size="small" />}
+            />
 
-        <Button
-          startIcon={<SendIcon />}
-          variant="outlined"
-          onClick={() => {
-            fetchStudentsReport();
-          }}
-        >
-          fetch{" "}
-        </Button>
-        <IconButton
-          aria-label="download"
-          onClick={(e) => {
-            download();
-          }}
-        >
-          <DownloadIcon color="primary" />
-        </IconButton>
-      </Stack>
+            <Autocomplete
+              value={months.find((m) => m.value === inputMonth)?.label || "Select Month"}
+              onChange={(e, val) => {
+                const found = months.find((m) => m.label === val);
+                if (found) setInputMonth(found.value);
+              }}
+              options={months.map((m) => m.label)}
+              sx={{ width: { xs: "100%", sm: 180 } }}
+              renderInput={(params) => <TextField {...params} label="Select Month" size="small" />}
+            />
 
-      <TableContainer component={Paper} sx={{ padding: "10px" }} elevation={6}>
-        <Table sx={{ minWidth: 650 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SyncRoundedIcon />}
+              onClick={fetchStudentsReport}
+              disabled={loading}
+              sx={{ borderRadius: "10px", fontWeight: 700 }}
+            >
+              Fetch Records
+            </Button>
+          </Stack>
+
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              size="small"
+              placeholder="Search student in report..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRoundedIcon sx={{ fontSize: 18, color: "#94A3B8" }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: "10px" },
+              }}
+            />
+
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={downloading ? <CircularProgress size={16} color="inherit" /> : <FileDownloadOutlinedIcon />}
+              onClick={download}
+              disabled={downloading}
+              sx={{
+                borderRadius: "10px",
+                fontWeight: 700,
+                borderWidth: "1.5px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Export CSV
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {/* Historical Matrix Table */}
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #E2E8F0",
+          overflowX: "auto",
+        }}
+      >
+        <Table sx={{ minWidth: 700 }}>
           <TableHead>
-            <TableRow>
-              <TableCell>name of student</TableCell>
-
-              {columns.map((v, i) => {
-                return <TableCell key={i}>{v.split("T")[0]}</TableCell>;
-              })}
+            <TableRow sx={{ backgroundColor: "#F8FAFC" }}>
+              <TableCell sx={{ minWidth: 180, fontWeight: 700 }}>Student Name</TableCell>
+              {columns && columns.length > 0 ? (
+                columns.map((dateStr, i) => (
+                  <TableCell key={i} align="center" sx={{ minWidth: 65, px: 1, fontWeight: 700 }}>
+                    {dateStr.split("T")[0].split("-").slice(1).join("/")}
+                  </TableCell>
+                ))
+              ) : (
+                <TableCell align="center">Dates</TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
-            {/* {batchReport?.map((row, i) => (
-              <TableRow
-                key={i}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {row.name}
-                </TableCell>
-
-                <TableCell
-                  onClick={(e) => {
-                    if (batchReport[i].status === "A") {
-                      batchReport[i].status = "P";
-                    } else if (batchReport[i].status === "P") {
-                      batchReport[i].status = "L";
-                    } else if (batchReport[i].status === "L") {
-                      batchReport[i].status = "A";
-                    }
-                    console.log(batchReport[i].status);
-
-                    setBatchStudent([...batchReport]);
-                  }}
-                >
-                  <Button
+            {filteredStudentRep && filteredStudentRep.length > 0 ? (
+              filteredStudentRep.map((item, i) => {
+                const [studentId, studentName] = item.split("---");
+                return (
+                  <TableRow
+                    key={studentId || i}
                     sx={{
-                      color:
-                        batchReport[i].status === "A"
-                          ? "red"
-                          : batchReport[i].status === "P"
-                          ? "primary"
-                          : "orange",
+                      "&:last-child td, &:last-child th": { border: 0 },
+                      "&:hover": { backgroundColor: "#F8FAFC" },
                     }}
                   >
-                    {row.status}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))} */}
-            {studentRep?.map((name, i) => (
-              <TableRow
-                key={i}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {name.split("-")[1]}
-                </TableCell>
-
-                {columns.map((v, i) => {
-                  return (
-                    <TableCell component="th" scope="row">
-                      {`${getAttendanceStatus(name.split("-")[0], v)}`}
+                    <TableCell component="th" scope="row" sx={{ fontWeight: 600, color: "#0F172A" }}>
+                      {studentName}
                     </TableCell>
-                  );
-                })}
 
-                {/* <TableCell
-                  onClick={(e) => {
-                    if (batchReport[i].status === "A") {
-                      batchReport[i].status = "P";
-                    } else if (batchReport[i].status === "P") {
-                      batchReport[i].status = "L";
-                    } else if (batchReport[i].status === "L") {
-                      batchReport[i].status = "A";
-                    }
-                    console.log(batchReport[i].status);
-
-                    setBatchStudent([...batchReport]);
-                  }}
-                >
-                  <Button
-                    sx={{
-                      color:
-                        batchReport[i].status === "A"
-                          ? "red"
-                          : batchReport[i].status === "P"
-                          ? "primary"
-                          : "orange",
-                    }}
-                  >
-                    {row.status}
-                  </Button>
-                </TableCell> */}
+                    {columns && columns.length > 0 ? (
+                      columns.map((dateStr, dIdx) => (
+                        <TableCell key={dIdx} align="center" sx={{ px: 1 }}>
+                          {renderStatusBadge(getAttendanceStatus(studentId, dateStr))}
+                        </TableCell>
+                      ))
+                    ) : (
+                      <TableCell align="center" sx={{ color: "text.secondary" }}>
+                        No dates recorded
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1 || 2} align="center" sx={{ py: 6 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {loading ? "Loading attendance records..." : "No attendance logs found for this period."}
+                  </Typography>
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
-        {/* <Button
-          variant="outlined"
-          startIcon={<SendIcon></SendIcon>}
-          onClick={(e) => register()}
-          sx={{ marginTop: "10px" }}
-        >
-          register
-        </Button> */}
       </TableContainer>
 
-      {/* <Toastify
-        handleOpen={handleOpenToast}
+      <Toastify
+        open={openToast}
         handleClose={handleCloseToast}
         message={toastMessage}
         severity={severity}
-        open={openToast}
-      ></Toastify> */}
-    </div>
+      />
+    </Box>
   );
 };
 
 export default PreviousAttendanceAll;
-
-{
-  /* cle
-         </Dialog>
-*/
-}
-// let [attendance, setAttendance] = React.useState([]);
-// let { batchId } = useParams();
-// const user = useAuth();
-// async function fetchBatchStudent() {
-//   let headersList = {
-//     "Content-type": "application/json",
-//     Authorization: `Bearer ${user.token()}`,
-//   };
-
-//   console.log(batchId, email);
-//   let response = await fetch(
-//     "http://localhost:8000/attendance/" + batchId + "/" + email,
-//     {
-//       method: "GET",
-//       headers: headersList,
-//     }
-//   );
-
-//   let data = await response.json();
-//   console.log("data..............", data);
-
-//   setAttendance(data.result);
-
-//     }
-// }
-
-// React.useEffect(() => {
-//   fetchBatchStudent();
-// }, []);

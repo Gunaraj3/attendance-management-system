@@ -2,125 +2,173 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/auth";
 import { useParams } from "react-router-dom";
 import {
-  AppBar,
-  Card,
-  CardContent,
   Dialog,
   Grid,
   IconButton,
   Paper,
   Slide,
-  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Toolbar,
   Typography,
+  Box,
+  Chip,
+  LinearProgress,
 } from "@mui/material";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
+import AccessTimeFilledRoundedIcon from "@mui/icons-material/AccessTimeFilledRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
-import CloseIcon from "@mui/icons-material/Close";
-
 const IndividualAttendance = ({ email, handleClose, isOpen }) => {
-  let [presentDays, setPresentDays] = useState(0);
-  let [absentDays, setAbsentDays] = useState(0);
-  let [leaveDays, setLeaveDays] = useState(0);
-  let [columns, setColumns] = useState([]);
-  let [studentRep, setStudentRep] = useState([]);
-  let [data, setData] = useState([]);
-  let [totalDays, setTotalDays] = useState("");
+  const [presentDays, setPresentDays] = useState(0);
+  const [absentDays, setAbsentDays] = useState(0);
+  const [leaveDays, setLeaveDays] = useState(0);
+  const [columns, setColumns] = useState([]);
+  const [studentRep, setStudentRep] = useState([]);
+  const [data, setData] = useState([]);
+  const [totalDays, setTotalDays] = useState(0);
 
-  let { batchId } = useParams();
-
+  const { batchId } = useParams();
   const user = useAuth();
 
   async function fetchStudentsReport() {
-    let headersList = {
-      "Content-type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
+    try {
+      let headersList = {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
 
-    console.log(batchId, email);
-    let response = await fetch(
-      "http://localhost:8000/attendance/" + batchId + "/" + email,
-      {
-        method: "GET",
-        headers: headersList,
+      let response = await fetch(
+        `http://localhost:8000/attendance/${batchId}/${email}`,
+        {
+          method: "GET",
+          headers: headersList,
+        }
+      );
+
+      let res = await response.json();
+      if (res.success && res.result) {
+        setData(res.result);
+
+        let dates = new Set();
+        let nm = new Set();
+        let pDays = 0;
+        let lDays = 0;
+        let aDays = 0;
+
+        res.result.forEach((v) => {
+          dates.add(v.date);
+          if (v.studentId) {
+            nm.add(v.studentId._id + "---" + v.studentId.name);
+          }
+
+          const st = v.status ? v.status.toUpperCase() : "";
+          if (st === "A") aDays += 1;
+          else if (st === "P") pDays += 1;
+          else if (st === "L") lDays += 1;
+        });
+
+        let unique = [...dates].sort();
+        setPresentDays(pDays);
+        setAbsentDays(aDays);
+        setLeaveDays(lDays);
+        setTotalDays(unique.length);
+        setColumns(unique);
+        setStudentRep([...nm]);
       }
-    );
-
-    let data = await response.json();
-    console.log(data, "insdie get previous student");
-
-    setData(data.result);
-
-    let dates = new Set();
-
-    let nm = new Set();
-    let presentDays = 0;
-    let leaveDays = 0;
-    let absentDays = 0;
-
-    data.result.forEach((v, id) => {
-      dates.add(v.date);
-      if (v.studentId) {
-        nm.add(v.studentId._id + "-" + v.studentId.name);
-      }
-
-      if (v.status === "A") {
-        absentDays += 1;
-        console.log(absentDays, "1", "look", v.status);
-      } else if (v.status === "P") {
-        console.log(presentDays, "0,", "look", v.status);
-        presentDays += 1;
-      } else if (v.status === "L") {
-        leaveDays += 1;
-        console.log(leaveDays, "2", "look", v.status);
-      }
-    });
-    let unique = [...dates];
-    console.log(leaveDays, absentDays, presentDays);
-    setPresentDays(presentDays);
-    setAbsentDays(absentDays);
-    setLeaveDays(leaveDays);
-    setTotalDays(unique.length);
-
-    setColumns(unique);
-
-    setStudentRep([...nm]);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  const getAttendanceStatus = (id, date) => {
-    const attendanceRecord = data.find((item) => {
+  const getAttendanceStatus = (studentId, date) => {
+    const record = data.find((item) => {
       if (item.studentId) {
-        return item.studentId._id === id && item.date === date;
+        return item.studentId._id === studentId && item.date === date;
       }
-
       return false;
     });
 
-    if (!attendanceRecord) {
-      return "N";
-    }
-
-    // if (attendanceRecord.status === 1) {
-    //   absentDays += 1;
-    // } else if (attendanceRecord.status === 2) {
-    //   leaveDays += 1;
-    // }
-
-    return attendanceRecord.status;
+    if (!record) return "N";
+    return record.status || "N";
   };
 
   useEffect(() => {
-    fetchStudentsReport();
-  }, []);
+    if (email && batchId) {
+      fetchStudentsReport();
+    }
+  }, [email, batchId]);
+
+  const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+
+  const renderStatusBadge = (status) => {
+    const st = status ? status.toUpperCase() : "";
+    if (st === "P") {
+      return (
+        <Chip
+          label="P"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#F0FDF4",
+            color: "#16A34A",
+            border: "1px solid #BBF7D0",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    if (st === "A") {
+      return (
+        <Chip
+          label="A"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#FFF1F2",
+            color: "#E11D48",
+            border: "1px solid #FECDD3",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    if (st === "L") {
+      return (
+        <Chip
+          label="L"
+          size="small"
+          sx={{
+            fontWeight: 800,
+            fontSize: "0.75rem",
+            backgroundColor: "#FFFBEB",
+            color: "#D97706",
+            border: "1px solid #FDE68A",
+            minWidth: 28,
+            height: 24,
+          }}
+        />
+      );
+    }
+    return (
+      <Typography variant="caption" sx={{ color: "#CBD5E1", fontWeight: 700 }}>
+        —
+      </Typography>
+    );
+  };
 
   return (
     <Dialog
@@ -128,119 +176,215 @@ const IndividualAttendance = ({ email, handleClose, isOpen }) => {
       open={isOpen}
       onClose={handleClose}
       TransitionComponent={Transition}
+      PaperProps={{
+        sx: { backgroundColor: "#F8FAFC" },
+      }}
     >
-      <AppBar sx={{ backgroundColor: "#9c27b0" }}>
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={handleClose}
-            aria-label="close"
-          >
-            <CloseIcon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-      <Grid container spacing={5} marginTop={0} marginBottom={5}>
-        <Grid item xs={3}>
-          <Stack sx={{ marginTop: "50px" }}>
-            <Card elevation={6}>
-              <Stack direction={"column"}>
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    Total days
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {totalDays}
-                  </Typography>
-                </CardContent>
-              </Stack>
-            </Card>
-          </Stack>
-        </Grid>
-        <Grid item xs={3}>
-          <Stack sx={{ marginTop: "50px" }}>
-            <Card elevation={6}>
-              <Stack direction={"column"}>
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    Total Absent Days
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {absentDays}
-                  </Typography>
-                </CardContent>
-              </Stack>
-            </Card>
-          </Stack>
-        </Grid>
-        <Grid item xs={3}>
-          <Stack sx={{ marginTop: "50px" }}>
-            <Card elevation={6}>
-              <Stack direction={"column"}>
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    Total Present Days
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {presentDays}
-                  </Typography>
-                </CardContent>
-              </Stack>
-            </Card>
-          </Stack>
-        </Grid>
-        <Grid item xs={3}>
-          <Stack sx={{ marginTop: "50px" }}>
-            <Card elevation={6}>
-              <Stack direction={"column"}>
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    Total Leave Days
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {leaveDays}
-                  </Typography>
-                </CardContent>
-              </Stack>
-            </Card>
-          </Stack>
-        </Grid>
-      </Grid>
+      {/* Top App Header */}
+      <Box
+        sx={{
+          backgroundColor: "#FFFFFF",
+          borderBottom: "1px solid #E2E8F0",
+          px: { xs: 2, sm: 4 },
+          py: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: "#0F172A" }}>
+            Student Attendance Performance
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
+            {email} — Batch: {batchId}
+          </Typography>
+        </Box>
 
-      <TableContainer component={Paper} sx={{ padding: "10px" }} elevation={6}>
-        <Table sx={{ minWidth: 650 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>name of student</TableCell>
+        <IconButton
+          onClick={handleClose}
+          sx={{
+            backgroundColor: "#F1F5F9",
+            "&:hover": { backgroundColor: "#E2E8F0" },
+          }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
+      </Box>
 
-              {columns.map((v, i) => {
-                return <TableCell key={i}>{v.split("T")[0]}</TableCell>;
-              })}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {studentRep?.map((name, i) => (
-              <TableRow
-                key={i}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {name.split("-")[1]}
-                </TableCell>
+      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 1300, mx: "auto", width: "100%" }}>
+        {/* KPI Stats Grid */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ p: 1, borderRadius: "10px", backgroundColor: "#EEF2FF", color: "#4F46E5" }}>
+                  <CalendarMonthRoundedIcon fontSize="small" />
+                </Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                  Total Sessions
+                </Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                {totalDays} <span style={{ fontSize: "1rem", color: "#64748B", fontWeight: 500 }}>days</span>
+              </Typography>
+            </Paper>
+          </Grid>
 
-                {columns.map((v, i) => {
-                  return (
-                    <TableCell component="th" scope="row">
-                      {`${getAttendanceStatus(name.split("-")[0], v)}`}
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ p: 1, borderRadius: "10px", backgroundColor: "#F0FDF4", color: "#16A34A" }}>
+                  <CheckCircleRoundedIcon fontSize="small" />
+                </Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                  Present Days
+                </Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "#16A34A" }}>
+                {presentDays} <span style={{ fontSize: "1rem", color: "#64748B", fontWeight: 500 }}>({attendanceRate}%)</span>
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={attendanceRate}
+                sx={{
+                  mt: 1.5,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: "#E2E8F0",
+                  "& .MuiLinearProgress-bar": { backgroundColor: "#10B981", borderRadius: 3 },
+                }}
+              />
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ p: 1, borderRadius: "10px", backgroundColor: "#FFF1F2", color: "#E11D48" }}>
+                  <CancelRoundedIcon fontSize="small" />
+                </Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                  Absent Days
+                </Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "#E11D48" }}>
+                {absentDays} <span style={{ fontSize: "1rem", color: "#64748B", fontWeight: 500 }}>days</span>
+              </Typography>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: "16px",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ p: 1, borderRadius: "10px", backgroundColor: "#FFFBEB", color: "#D97706" }}>
+                  <AccessTimeFilledRoundedIcon fontSize="small" />
+                </Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                  Leave / Late
+                </Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "#D97706" }}>
+                {leaveDays} <span style={{ fontSize: "1rem", color: "#64748B", fontWeight: 500 }}>days</span>
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* Date Breakdown Matrix Table */}
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: "16px",
+            border: "1px solid #E2E8F0",
+            overflowX: "auto",
+          }}
+        >
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#F8FAFC" }}>
+                <TableCell sx={{ fontWeight: 700, minWidth: 160 }}>Student</TableCell>
+                {columns && columns.length > 0 ? (
+                  columns.map((v, i) => (
+                    <TableCell key={i} align="center" sx={{ fontWeight: 700, minWidth: 65, px: 1 }}>
+                      {v.split("T")[0].split("-").slice(1).join("/")}
                     </TableCell>
-                  );
-                })}
+                  ))
+                ) : (
+                  <TableCell align="center">Dates</TableCell>
+                )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {studentRep && studentRep.length > 0 ? (
+                studentRep.map((name, i) => {
+                  const [studentId, studentName] = name.split("---");
+                  return (
+                    <TableRow key={i} sx={{ "&:hover": { backgroundColor: "#F8FAFC" } }}>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>
+                        {studentName}
+                      </TableCell>
+                      {columns.map((v, cIdx) => (
+                        <TableCell key={cIdx} align="center" sx={{ px: 1 }}>
+                          {renderStatusBadge(getAttendanceStatus(studentId, v))}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length + 1 || 2} align="center" sx={{ py: 6 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No attendance records found for this student.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
     </Dialog>
   );
 };

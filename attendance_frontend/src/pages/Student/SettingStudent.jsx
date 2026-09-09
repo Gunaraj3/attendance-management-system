@@ -1,462 +1,353 @@
-import * as React from "react";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import React, { useState } from "react";
+import {
+  Box,
+  Paper,
+  Typography,
+  Tabs,
+  Tab,
+  TextField,
+  Button,
+  Stack,
+  IconButton,
+  InputAdornment,
+  CircularProgress,
+} from "@mui/material";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Info from "../../components/Info";
-import { TextField } from "@mui/material";
-import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
 import { useAuth } from "../../context/auth";
 import Toastify from "../../components/Toastify";
 
 export default function SettingStudent() {
   const user = useAuth();
-  let [oldPassword, setOldPassword] = React.useState("");
-  let [oldPasswordErrors, setOldPasswordErrors] = React.useState("");
-  let [isOldPasswordError, setIsOldPasswordError] = React.useState(false);
-  let [newPassword, setNewPassword] = React.useState("");
-  let [newPasswordErrors, setNewPasswordErrors] = React.useState("");
-  let [isNewPasswordError, setIsNewPasswordError] = React.useState(false);
-  let [confirmPassword, setConfirmPassword] = React.useState("");
-  let [confirmPasswordErrors, setConfirmPasswordErrors] = React.useState("");
-  let [isConfirmPasswordError, setIsConfirmPasswordError] =
-    React.useState(false);
-  const [expanded, setExpanded] = React.useState(false);
-  let [toastMessage, setToastMessage] = React.useState();
-  let [severity, setSeverity] = React.useState();
-  let [openToast, setOpenToast] = React.useState(false);
+  const [tabValue, setTabValue] = useState(0);
 
-  const handleOpenToast = () => {
-    setOpenToast(true);
-  };
+  const [oldPassword, setOldPassword] = useState("");
+  const [oldPasswordErrors, setOldPasswordErrors] = useState([]);
+  const [isOldPasswordError, setIsOldPasswordError] = useState(false);
 
-  const handleCloseToast = () => {
-    setOpenToast(false);
-  };
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordErrors, setNewPasswordErrors] = useState([]);
+  const [isNewPasswordError, setIsNewPasswordError] = useState(false);
 
-  const handleChange = (panel) => (event, isExpanded) => {
-    setExpanded(isExpanded ? panel : false);
-  };
-  const [subExpand, setSubExpanded] = React.useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordErrors, setConfirmPasswordErrors] = useState([]);
+  const [isConfirmPasswordError, setIsConfirmPasswordError] = useState(false);
 
-  const handleSubExpandChange = (panel) => (event, isExpanded) => {
-    console.log(isExpanded, "..........");
-    setSubExpanded(isExpanded ? panel : false);
-  };
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function ChangePassword() {
-    handleSubmit();
-    async function handleSubmit() {
-      if (oldPassword === "" || newPassword === "" || confirmPassword === "") {
-        if (
-          oldPassword === "" &&
-          !oldPasswordErrors.includes("oldPassword is required")
-        ) {
-          setIsOldPasswordError(true);
-          setOldPasswordErrors([
-            ...oldPasswordErrors,
-            "oldPassword is required",
-          ]);
-        }
-        if (
-          confirmPassword === "" &&
-          !confirmPasswordErrors.includes("confirmPassword is required")
-        ) {
-          setIsConfirmPasswordError(true);
-          setConfirmPasswordErrors([
-            ...confirmPasswordErrors,
-            "confirmPassword is required",
-          ]);
-        }
-        if (
-          newPassword === "" &&
-          !newPasswordErrors.includes("newPassword is required")
-        ) {
-          setIsNewPasswordError(true);
-          setNewPasswordErrors([
-            ...setNewPasswordErrors,
-            "newPassword is required",
-          ]);
-        }
-        return;
-      }
-      if (
-        newPasswordErrors.length !== 0 ||
-        oldPasswordErrors.length !== 0 ||
-        confirmPasswordErrors.length !== 0
-      ) {
-        console.log("cannot call error is there");
-        return;
-      }
+  const [toastMessage, setToastMessage] = useState("");
+  const [severity, setSeverity] = useState("info");
+  const [openToast, setOpenToast] = useState(false);
 
+  const handleOpenToast = () => setOpenToast(true);
+  const handleCloseToast = () => setOpenToast(false);
+
+  function checkPasswordStrength(val, errors) {
+    if (!/.*[a-z].*/.test(val)) errors.push("Must contain at least one lower case letter");
+    if (!/.*[A-Z].*/.test(val)) errors.push("Must contain at least one upper case letter");
+    if (!/.*\d.*/.test(val)) errors.push("Must contain at least one digit");
+    if (!/.{8,}/.test(val)) errors.push("Must be at least 8 characters long");
+  }
+
+  function handleOldPasswordChange(e) {
+    const val = e.target.value;
+    setOldPassword(val);
+    let errors = [];
+    if (!val.trim()) errors.push("Current password is required");
+    setIsOldPasswordError(errors.length !== 0);
+    setOldPasswordErrors(errors);
+  }
+
+  function handleNewPasswordChange(e) {
+    const val = e.target.value;
+    setNewPassword(val);
+    let errors = [];
+    if (!val.trim()) errors.push("New password is required");
+    else checkPasswordStrength(val, errors);
+    setIsNewPasswordError(errors.length !== 0);
+    setNewPasswordErrors(errors);
+  }
+
+  function handleConfirmPasswordChange(e) {
+    const val = e.target.value;
+    setConfirmPassword(val);
+    let errors = [];
+    if (!val.trim()) errors.push("Confirm password is required");
+    else if (val !== newPassword) errors.push("Passwords do not match");
+    setIsConfirmPasswordError(errors.length !== 0);
+    setConfirmPasswordErrors(errors);
+  }
+
+  async function handleSubmitPassword(e) {
+    if (e) e.preventDefault();
+
+    let oErrors = [];
+    let nErrors = [];
+    let cErrors = [];
+
+    if (!oldPassword) oErrors.push("Current password is required");
+    if (!newPassword) nErrors.push("New password is required");
+    else checkPasswordStrength(newPassword, nErrors);
+
+    if (!confirmPassword) cErrors.push("Confirm password is required");
+    else if (confirmPassword !== newPassword) cErrors.push("Passwords do not match");
+
+    if (oErrors.length > 0 || nErrors.length > 0 || cErrors.length > 0) {
+      setOldPasswordErrors(oErrors);
+      setNewPasswordErrors(nErrors);
+      setConfirmPasswordErrors(cErrors);
+      setIsOldPasswordError(oErrors.length > 0);
+      setIsNewPasswordError(nErrors.length > 0);
+      setIsConfirmPasswordError(cErrors.length > 0);
+      return;
+    }
+
+    setLoading(true);
+    try {
       let headersList = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${user.token()}`,
       };
-
-      if (confirmPassword !== newPassword) {
-        console.log("password did not match");
-        return;
-      }
 
       let bodyContent = JSON.stringify({
         currentPassword: oldPassword,
         newPassword,
       });
 
-      let data;
-      try {
-        let response = await fetch(
-          "http://localhost:8000/student/update-password",
-          {
-            method: "POST",
-            body: bodyContent,
-            headers: headersList,
-          }
-        );
+      let response = await fetch("http://localhost:8000/student/update-password", {
+        method: "POST",
+        body: bodyContent,
+        headers: headersList,
+      });
 
-        data = await response.json();
-      } catch (e) {
-        setOpenToast(true);
-        setToastMessage("something went wrong");
-        setSeverity("error");
-        handleClose();
-      }
-
-      console.log(data);
-
+      let data = await response.json();
       if (data.success) {
-        console.log(data.result.length);
-
-        setOpenToast(true);
-        setToastMessage(data.message);
         setSeverity("success");
-        handleClose();
+        setToastMessage(data.message || "Password updated successfully");
+        handleOpenToast();
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
       } else {
-        setOpenToast(true);
-        setToastMessage(data.message);
         setSeverity("error");
-        handleClose();
+        setToastMessage(data.message || "Failed to update password");
+        handleOpenToast();
       }
-      fetchStudent();
-      console.log(data);
+    } catch (err) {
+      setSeverity("error");
+      setToastMessage("Something went wrong");
+      handleOpenToast();
+    } finally {
+      setLoading(false);
     }
   }
-
-  function required(event, errors) {
-    if (event.target.value === "") {
-      errors.push(`${event.target.name} is required`);
-    }
-  }
-
-  function checkPasswordStrength(event, errors) {
-    if (!/.*[a-z].*/.test(event.target.value)) {
-      errors.push(`must contain at least one lower case letter`);
-    }
-    if (!/.*[A-Z].*/.test(event.target.value)) {
-      errors.push(`must contain at least one upper case letter`);
-    }
-    if (!/.*\d.*/.test(event.target.value)) {
-      errors.push(`mush contain one digit`);
-    }
-    if (!/.{8,}/.test(event.target.value)) {
-      errors.push(`must be at least 8 character long`);
-    }
-  }
-
-  const checks = {
-    confirmPassword: [required, checkPasswordStrength],
-    oldPassword: [required, checkPasswordStrength],
-    newPassword: [required, checkPasswordStrength],
-  };
-
-  function handleOldPasswordChange(e) {
-    setOldPassword(e.target.value);
-    let errors = [];
-
-    checks.oldPassword.forEach((v) => {
-      v(e, errors);
-    });
-    if (errors.length === 0) {
-      setIsOldPasswordError(false);
-    } else {
-      setIsOldPasswordError(true);
-    }
-    setOldPasswordErrors(errors);
-  }
-  function handleNewPasswordChange(e) {
-    setNewPassword(e.target.value);
-    let errors = [];
-
-    checks.newPassword.forEach((v) => {
-      v(e, errors);
-    });
-    if (errors.length === 0) {
-      setIsNewPasswordError(false);
-    } else {
-      setIsNewPasswordError(true);
-    }
-    setNewPasswordErrors(errors);
-  }
-  function handleConfirmPasswordChange(e) {
-    setConfirmPassword(e.target.value);
-    let errors = [];
-
-    checks.confirmPassword.forEach((v) => {
-      v(e, errors);
-    });
-    if (errors.length === 0) {
-      setIsConfirmPasswordError(false);
-    } else {
-      setIsConfirmPasswordError(true);
-    }
-    setConfirmPasswordErrors(errors);
-  }
-
-  async function handleChangePassword(e) {
-    if (e.target.name === "oldPassword") {
-      handleOldPasswordChange(e);
-    } else if (e.target.name === "password") {
-      handleNewPasswordChange(e);
-    } else {
-      handleConfirmPasswordChange(e);
-    }
-  }
-  console.log("newPassword", newPassword);
-  console.log("confirmPassword", confirmPassword);
 
   return (
-    <div>
-      <Accordion
-        expanded={expanded === "panel4"}
-        onChange={handleChange("panel4")}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel4bh-content"
-          id="panel4bh-header"
-        >
-          <Typography sx={{ width: "33%", flexShrink: 0 }}>
-            Personal data
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Info url={"student"}></Info>
-        </AccordionDetails>
-      </Accordion>
-      <Accordion
-        expanded={expanded === "panel1"}
-        onChange={handleChange("panel1")}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel1bh-content"
-          id="panel1bh-header"
-        >
-          <Typography sx={{ width: "33%", flexShrink: 0 }}>
-            General settings
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Accordion
-            expanded={subExpand === "subPanel1"}
-            onChange={handleSubExpandChange("subPanel1")}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="panel1bh-content"
-              id="panel1bh-header"
-            >
-              <Typography sx={{ width: "33%", flexShrink: 0 }}>
-                Change Password
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack direction={"column"}>
-                <Stack
-                  direction={"row"}
-                  spacing={5}
-                  justifyContent={"space-between"}
-                >
-                  <div
-                    style={{
-                      fontSize: "20px",
-                      position: "relative",
-                      top: "10px",
-                    }}
-                  >
-                    old password
-                  </div>
-                  <TextField
-                    type="password"
-                    error={isOldPasswordError ? true : false}
-                    label="old password"
-                    sx={{
-                      width: "70%",
-                    }}
-                    onChange={(e) => {
-                      handleOldPasswordChange(e);
-                    }}
-                    name="oldPassword"
-                    value={oldPassword}
-                  />
-                </Stack>
-                <div
-                  style={{
-                    marginLeft: "auto",
-                    marginRight: 0,
-                    minWidth: "70%",
-                  }}
-                >
-                  {oldPasswordErrors.length !== 0 &&
-                    oldPasswordErrors.map((v, i) => {
-                      return (
-                        <p
-                          style={{
-                            color: "red",
-                            marginTop: "5px",
-                            width: "70%",
-                            textAlign: "left",
-                          }}
-                          key={i}
-                        >
-                          {" "}
-                          {v}{" "}
-                        </p>
-                      );
-                    })}
-                </div>
-              </Stack>
-              <Stack direction={"column"} marginTop={2}>
-                <Stack
-                  direction={"row"}
-                  spacing={5}
-                  justifyContent={"space-between"}
-                >
-                  <div
-                    style={{
-                      fontSize: "20px",
-                      position: "relative",
-                      top: "10px",
-                    }}
-                  >
-                    new password
-                  </div>
-                  <TextField
-                    error={isNewPasswordError ? true : false}
-                    label="new password"
-                    sx={{
-                      width: "70%",
-                    }}
-                    onChange={(e) => {
-                      handleNewPasswordChange(e);
-                    }}
-                    name="newPassword"
-                    value={newPassword}
-                    type="password"
-                  />
-                </Stack>
-                <div
-                  style={{
-                    marginLeft: "auto",
-                    marginRight: 0,
-                    minWidth: "70%",
-                  }}
-                >
-                  {newPasswordErrors.length !== 0 &&
-                    newPasswordErrors.map((v, i) => {
-                      return (
-                        <p
-                          style={{
-                            color: "red",
-                            marginTop: "5px",
-                            width: "70%",
-                            textAlign: "left",
-                          }}
-                          key={i}
-                        >
-                          {" "}
-                          {v}{" "}
-                        </p>
-                      );
-                    })}
-                </div>
-              </Stack>
-              <Stack direction={"column"} marginTop={2}>
-                <Stack
-                  direction={"row"}
-                  spacing={5}
-                  justifyContent={"space-between"}
-                >
-                  <div
-                    style={{
-                      fontSize: "20px",
-                      position: "relative",
-                      top: "10px",
-                    }}
-                  >
-                    confirm password
-                  </div>
-                  <TextField
-                    error={isConfirmPasswordError ? true : false}
-                    label="confirm password"
-                    type="password"
-                    sx={{
-                      width: "70%",
-                    }}
-                    onChange={(e) => {
-                      handleConfirmPasswordChange(e);
-                    }}
-                    name="confirmPassword"
-                    value={confirmPassword}
-                  />
-                </Stack>
-                <div
-                  style={{
-                    marginLeft: "auto",
-                    marginRight: 0,
-                    minWidth: "70%",
-                  }}
-                >
-                  {confirmPasswordErrors.length !== 0 &&
-                    confirmPasswordErrors.map((v, i) => {
-                      return (
-                        <p
-                          style={{
-                            color: "red",
-                            marginTop: "5px",
-                            width: "70%",
-                            textAlign: "left",
-                          }}
-                          key={i}
-                        >
-                          {" "}
-                          {v}{" "}
-                        </p>
-                      );
-                    })}
-                </div>
-              </Stack>
+    <Box sx={{ maxWidth: 900 }}>
+      {/* Page Title */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>
+          Student Account Settings
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#64748B", mt: 0.5 }}>
+          Manage your student profile details and update account security credentials
+        </Typography>
+      </Box>
 
-              <div style={{ textAlign: "right", marginTop: "7px" }}>
-                <Button variant="outlined" onClick={ChangePassword}>
-                  Change
-                </Button>
-              </div>
-            </AccordionDetails>
-          </Accordion>
-        </AccordionDetails>
-      </Accordion>
+      {/* Styled Tabs */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #E2E8F0",
+          backgroundColor: "#FFFFFF",
+          p: 0.8,
+          mb: 3,
+        }}
+      >
+        <Tabs
+          value={tabValue}
+          onChange={(e, val) => setTabValue(val)}
+          sx={{
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px",
+              background: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
+            },
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: "0.875rem",
+              borderRadius: "10px",
+              color: "#64748B",
+              gap: 1,
+              "&.Mui-selected": { color: "#0284C7" },
+            },
+          }}
+        >
+          <Tab icon={<PersonOutlineIcon fontSize="small" />} iconPosition="start" label="Personal Profile" />
+          <Tab icon={<LockOutlinedIcon fontSize="small" />} iconPosition="start" label="Security & Password" />
+        </Tabs>
+      </Paper>
+
+      {/* Profile Details Tab */}
+      {tabValue === 0 && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3.5,
+            borderRadius: "20px",
+            border: "1px solid #E2E8F0",
+            backgroundColor: "#FFFFFF",
+            boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 800, color: "#0F172A", mb: 0.5 }}>
+            Student Profile
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
+            Your student account credentials registered in the institution
+          </Typography>
+
+          <Info url="student" />
+        </Paper>
+      )}
+
+      {/* Password Update Tab */}
+      {tabValue === 1 && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3.5,
+            borderRadius: "20px",
+            border: "1px solid #E2E8F0",
+            backgroundColor: "#FFFFFF",
+            boxShadow: "0 4px 20px -2px rgba(0,0,0,0.04)",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 800, color: "#0F172A", mb: 0.5 }}>
+            Update Security Password
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#64748B", mb: 3.5 }}>
+            Ensure your student account is protected with a strong, secure password
+          </Typography>
+
+          <form onSubmit={handleSubmitPassword}>
+            <Stack spacing={3} sx={{ maxWidth: 500 }}>
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+                  Current Password *
+                </Typography>
+                <TextField
+                  fullWidth
+                  type={showOld ? "text" : "password"}
+                  placeholder="Enter your current password"
+                  value={oldPassword}
+                  onChange={handleOldPasswordChange}
+                  error={isOldPasswordError}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowOld(!showOld)} edge="end">
+                          {showOld ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                {oldPasswordErrors.map((err, i) => (
+                  <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                    {err}
+                  </Typography>
+                ))}
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+                  New Password *
+                </Typography>
+                <TextField
+                  fullWidth
+                  type={showNew ? "text" : "password"}
+                  placeholder="Enter new strong password"
+                  value={newPassword}
+                  onChange={handleNewPasswordChange}
+                  error={isNewPasswordError}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowNew(!showNew)} edge="end">
+                          {showNew ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                {newPasswordErrors.map((err, i) => (
+                  <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                    {err}
+                  </Typography>
+                ))}
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+                  Confirm New Password *
+                </Typography>
+                <TextField
+                  fullWidth
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Re-type new password"
+                  value={confirmPassword}
+                  onChange={handleConfirmPasswordChange}
+                  error={isConfirmPasswordError}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setShowConfirm(!showConfirm)} edge="end">
+                          {showConfirm ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                {confirmPasswordErrors.map((err, i) => (
+                  <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                    {err}
+                  </Typography>
+                ))}
+              </Box>
+
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={loading}
+                sx={{
+                  py: 1.3,
+                  borderRadius: "12px",
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
+                }}
+              >
+                {loading ? <CircularProgress size={22} color="inherit" /> : "Save New Password"}
+              </Button>
+            </Stack>
+          </form>
+        </Paper>
+      )}
 
       <Toastify
-        handleOpen={handleOpenToast}
+        open={openToast}
         handleClose={handleCloseToast}
         message={toastMessage}
         severity={severity}
-        open={openToast}
-      ></Toastify>
-    </div>
+      />
+    </Box>
   );
 }

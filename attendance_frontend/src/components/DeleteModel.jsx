@@ -1,63 +1,89 @@
-import React, { useEffect, useState } from "react";
-// import { useAuth } from "../../context/auth";
-// import Table from "../../components/Table";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Modal from "@mui/material/Modal";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CloseIcon from "@mui/icons-material/Close";
+import React from "react";
 import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
-  TextField,
+  Button,
+  IconButton,
+  Typography,
+  Box,
 } from "@mui/material";
-
-const style = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-};
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import CloseIcon from "@mui/icons-material/Close";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 const DeleteModel = ({
   handleDeleteClose,
   open,
   children,
   handleDeleteSubmit,
+  title = "Confirm Deletion",
+  message = "Are you sure you want to proceed? This action cannot be undone.",
 }) => {
   return (
-    <div>
-      <Dialog open={open} fullWidth={true}>
-        <DialogTitle>Are you Sure you want to delete?</DialogTitle>
-        <DialogContent>{children}</DialogContent>
-        <DialogActions>
-          <Button
-            variant="outlined"
-            startIcon={<CloseIcon />}
-            onClick={handleDeleteClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DeleteIcon />}
-            onClick={handleDeleteSubmit}
-            sx={{ color: "red", border: "1px solid red" }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+    <Dialog
+      open={open}
+      onClose={handleDeleteClose}
+      fullWidth
+      maxWidth="xs"
+      PaperProps={{
+        sx: {
+          borderRadius: "20px",
+          p: 1.5,
+          textAlign: "center",
+        },
+      }}
+    >
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <IconButton size="small" onClick={handleDeleteClose} sx={{ color: "text.secondary" }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <Box
+        sx={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          backgroundColor: "#FEE2E2",
+          color: "#EF4444",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          mx: "auto",
+          mb: 2,
+        }}
+      >
+        <WarningAmberRoundedIcon sx={{ fontSize: 32 }} />
+      </Box>
+
+      <DialogTitle sx={{ p: 0, fontWeight: 700, fontSize: "1.25rem", color: "text.primary" }}>
+        {title}
+      </DialogTitle>
+
+      <DialogContent sx={{ px: 2, py: 1.5 }}>
+        <Typography variant="body2" color="text.secondary">
+          {message}
+        </Typography>
+        {children}
+      </DialogContent>
+
+      <DialogActions sx={{ justifyContent: "center", gap: 1.5, pb: 2, pt: 1 }}>
+        <Button variant="outlined" color="inherit" onClick={handleDeleteClose} sx={{ px: 3 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="error"
+          startIcon={<DeleteOutlineIcon />}
+          onClick={handleDeleteSubmit}
+          sx={{ px: 3 }}
+        >
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

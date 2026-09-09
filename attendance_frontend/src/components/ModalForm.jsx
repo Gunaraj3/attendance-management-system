@@ -1,43 +1,52 @@
-import React, { useEffect, useState } from "react";
-// import { useAuth } from "../../context/auth";
-// import Table from "../../components/Table";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import Modal from "@mui/material/Modal";
+import React from "react";
 import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
-  TextField,
+  Button,
+  IconButton,
+  Typography,
+  Box,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
-const style = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-};
-
-const ModalForm = ({ handleClose, open, children, handleSubmit }) => {
+const ModalForm = ({ handleClose, open, children, handleSubmit, title = "Add New Entry" }) => {
   return (
-    <div>
-      <Dialog open={open} onClose={handleClose} fullWidth={true}>
-        <DialogTitle>Add</DialogTitle>
-        <DialogContent>{children}</DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Submit</Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: {
+          borderRadius: "20px",
+          p: 1,
+        },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 3, pt: 2.5, pb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
+          {title}
+        </Typography>
+        <IconButton size="small" onClick={handleClose} sx={{ color: "text.secondary" }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <DialogContent sx={{ px: 3, py: 2 }}>
+        {children}
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, borderTop: "1px solid #F1F5F9", gap: 1 }}>
+        <Button variant="outlined" color="inherit" onClick={handleClose} sx={{ color: "text.secondary" }}>
+          Cancel
+        </Button>
+        <Button variant="contained" color="primary" onClick={handleSubmit}>
+          Save & Submit
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

@@ -1,221 +1,205 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth";
-// import Table from "../../components/Table";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import ModalForm from "./../../components/ModalForm";
-import DisplayTable from "./../../components/DisplayTable";
-import TextField from "@mui/material/TextField";
-import AddIcon from "@mui/icons-material/Add";
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  Grid,
+  Paper,
+  Stack,
+  InputAdornment,
+} from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
+import ModalForm from "../../components/ModalForm";
+import DisplayTable from "../../components/DisplayTable";
 import Toastify from "../../components/Toastify";
-import { Card, CardContent, Grid, Stack } from "@mui/material";
 import EditForm from "../../components/EditForm";
 import DeleteModel from "../../components/DeleteModel";
 
-const style = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-};
-
 const StudentView = () => {
-  let [email, setEmail] = useState("");
-  let [password, setPassword] = useState("");
-  let [name, setName] = useState("");
-  let [loading, setLoading] = useState(true);
-  let [student, setStudent] = useState([]);
-  let [isEmailError, setIsEmailError] = useState(false);
-  let [isPasswordError, setIsPasswordError] = useState(false);
-  let [isNameError, setIsNameError] = useState(false);
-  let [emailErrors, setEmailErrors] = useState([]);
-  let [passwordErrors, setPasswordErrors] = useState([]);
-  let [nameErrors, setNameErrors] = useState([]);
-  const [open, setOpen] = React.useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [student, setStudent] = useState([]);
+  const [isEmailError, setIsEmailError] = useState(false);
+  const [isPasswordError, setIsPasswordError] = useState(false);
+  const [isNameError, setIsNameError] = useState(false);
+  const [emailErrors, setEmailErrors] = useState([]);
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [nameErrors, setNameErrors] = useState([]);
+  const [open, setOpen] = useState(false);
 
-  let [toastMessage, setToastMessage] = useState();
-  let [severity, setSeverity] = useState();
-  let [openToast, setOpenToast] = useState(false);
-  let [noStudents, setNoStudents] = useState(0);
-  let [edit, setEdit] = useState(false);
-  let [editStudentId, setEditStudentId] = useState("");
-  let [deleTeOpen, setDeleteOpen] = useState(false);
-  let [deleteId, setDeleteId] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+  const [severity, setSeverity] = useState("info");
+  const [openToast, setOpenToast] = useState(false);
+  const [noStudents, setNoStudents] = useState(0);
+  const [edit, setEdit] = useState(false);
+  const [editStudentId, setEditStudentId] = useState("");
+  const [deleTeOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState("");
+
+  const user = useAuth();
+
+  const handleOpenToast = () => setOpenToast(true);
+  const handleCloseToast = () => setOpenToast(false);
+
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => {
+    setEmail("");
+    setName("");
+    setPassword("");
+    setEmailErrors([]);
+    setPasswordErrors([]);
+    setNameErrors([]);
+    setIsEmailError(false);
+    setIsPasswordError(false);
+    setIsNameError(false);
+    setOpen(false);
+  };
 
   async function handleDeleteOpen(e, id) {
     setDeleteId(id);
     setDeleteOpen(true);
-    console.log("handleClose");
   }
-  async function handleDeleteClose(e, id) {
+
+  async function handleDeleteClose() {
     setDeleteOpen(false);
-    console.log("handleClose");
   }
-  async function handleDeleteSubmit(e, id) {
-    let data;
+
+  async function handleDeleteSubmit() {
     try {
-      let response = await fetch(
-        "http://localhost:8000/admin/student/" + deleteId,
-        {
-          method: "delete",
+      let response = await fetch("http://localhost:8000/admin/student/" + deleteId, {
+        method: "delete",
+        headers: {
+          Authorization: `Bearer ${user.token()}`,
+        },
+      });
 
-          headers: {
-            Authorization: `Bearer ${user.token()}`,
-          },
-        }
-      );
-
-      data = await response.json();
+      let data = await response.json();
+      if (data.success) {
+        setSeverity("success");
+        setToastMessage(data.message || "Student deleted successfully");
+        handleOpenToast();
+        handleDeleteClose();
+        fetchStudent();
+      } else {
+        setSeverity("error");
+        setToastMessage(data.message || "Failed to delete student");
+        handleOpenToast();
+        handleDeleteClose();
+      }
     } catch (e) {
-      setOpenToast(true);
-      setToastMessage("something went wrong");
       setSeverity("error");
-      handleClose();
-      handleEditClose();
-    }
-
-    console.log("data......", data);
-    if (data.success) {
-      setSeverity("success");
-      setToastMessage(data.message);
+      setToastMessage("Something went wrong");
       handleOpenToast();
       handleDeleteClose();
-
-      fetchStudent();
-    } else {
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("error");
-      handleDeleteClose();
     }
   }
 
-  const handleOpenToast = () => {
-    setOpenToast(true);
-  };
-
-  const handleCloseToast = () => {
-    setOpenToast(false);
-  };
-
-  let user = useAuth();
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-
   async function handleEditOpen(e, id) {
-    await fetch("http://localhost:8000/admin/student/" + id, {
-      headers: {
-        Authorization: `Bearer ${user.token()}`,
-      },
-    })
-      .then((data) => data.json())
-      .then((data) => {
+    try {
+      let res = await fetch("http://localhost:8000/admin/student/" + id, {
+        headers: {
+          Authorization: `Bearer ${user.token()}`,
+        },
+      });
+      let data = await res.json();
+      if (data.success) {
         setEmail(data.result.email);
         setName(data.result.name);
         setEditStudentId(id);
         setEdit(true);
-        console.log(data);
-      })
-      .catch((e) => {
-        console.log(e);
-      });
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
-  async function handleEditClose(e) {
+
+  async function handleEditClose() {
     setEmail("");
     setName("");
     setEmailErrors([]);
-
-    setNameErrors([]);
     setIsEmailError(false);
-
     setIsNameError(false);
     setEdit(false);
-    console.log("inside edit k", edit);
   }
 
-  async function handleEditSubmit(e, id) {
-    if (email === "" || name === "") {
-      if (email === "" && !emailErrors.includes("email is required")) {
-        setIsEmailError(true);
-        setEmailErrors([...emailErrors, "email is required"]);
-      }
+  async function handleEditSubmit() {
+    let nErrors = [];
+    let eErrors = [];
 
-      if (name === "" && !nameErrors.includes("name is required")) {
-        setIsEmailError(true);
-        setEmailErrors([...nameErrors, "name is required"]);
-      }
+    if (!name.trim()) {
+      nErrors.push("Name is required");
+      setIsNameError(true);
+    }
+    if (!email.trim()) {
+      eErrors.push("Email is required");
+      setIsEmailError(true);
+    }
+
+    if (nErrors.length > 0 || eErrors.length > 0) {
+      setNameErrors(nErrors);
+      setEmailErrors(eErrors);
       return;
     }
-    if (emailErrors.length !== 0 || nameErrors.length !== 0) {
-      console.log("cannot call error is there");
-      return;
-    }
+
+    if (emailErrors.length !== 0 || nameErrors.length !== 0) return;
+
     let headersList = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${user.token()}`,
     };
 
     let bodyContent = JSON.stringify({ data: { name, email } });
-    let data;
     try {
-      let response = await fetch(
-        "http://localhost:8000/admin/student/" + editStudentId,
-        {
-          method: "put",
-          body: bodyContent,
-          headers: headersList,
-        }
-      );
+      let response = await fetch("http://localhost:8000/admin/student/" + editStudentId, {
+        method: "put",
+        body: bodyContent,
+        headers: headersList,
+      });
 
-      data = await response.json();
+      let data = await response.json();
+      if (data.success) {
+        setSeverity("success");
+        setToastMessage(data.message || "Student updated successfully");
+        handleOpenToast();
+        handleEditClose();
+        fetchStudent();
+      } else {
+        setSeverity("error");
+        setToastMessage(data.message || "Failed to update student");
+        handleOpenToast();
+      }
     } catch (e) {
-      setOpenToast(true);
-      setToastMessage("something went wrong");
       setSeverity("error");
-      handleClose();
-      handleEditClose();
-    }
-
-    console.log("data......", data);
-    if (data.success) {
-      setSeverity("success");
-      setToastMessage(data.message);
+      setToastMessage("Something went wrong");
       handleOpenToast();
-      setEdit(false);
-      handleEditClose();
-      fetchStudent();
-    } else {
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("error");
-      setEdit(false);
-      handleEditClose();
     }
-    console.log("edit submit");
   }
 
   async function fetchStudent() {
-    let headersList = {
-      "Content-type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
+    try {
+      let headersList = {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
 
-    let response = await fetch("http://localhost:8000/admin/student", {
-      method: "GET",
-      headers: headersList,
-    });
+      let response = await fetch("http://localhost:8000/admin/student", {
+        method: "GET",
+        headers: headersList,
+      });
 
-    let data = await response.json();
-    console.log(data);
-    if (data.success) {
-      setNoStudents(data.result.length);
-
-      setStudent(data.result);
+      let data = await response.json();
+      if (data.success) {
+        setNoStudents(data.result.length);
+        setStudent(data.result);
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -223,130 +207,71 @@ const StudentView = () => {
     fetchStudent();
   }, []);
 
-  function required(event, errors) {
-    if (event.target.value === "") {
-      errors.push(`${event.target.name} is required`);
-    }
-  }
-
   function checkEmailFormat(event, errors) {
-    if (
-      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
-        event.target.value
-      )
-    ) {
-      errors.push(` invalide email format`);
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(event.target.value)) {
+      errors.push("Invalid Email format");
     }
   }
 
   function checkPasswordStrength(event, errors) {
-    if (!/.*[a-z].*/.test(event.target.value)) {
-      errors.push(`must contain at least one lower case letter`);
-    }
-    if (!/.*[A-Z].*/.test(event.target.value)) {
-      errors.push(`must contain at least one upper case letter`);
-    }
-    if (!/.*\d.*/.test(event.target.value)) {
-      errors.push(`mush contain one digit`);
-    }
-    if (!/.{8,}/.test(event.target.value)) {
-      errors.push(`must be at least 8 character long`);
-    }
-  }
-
-  const checks = {
-    email: [required, checkEmailFormat],
-    password: [required, checkPasswordStrength],
-    name: [required],
-  };
-
-  async function handleChange(e) {
-    if (e.target.name === "email") {
-      handleEmailChange(e);
-    } else if (e.target.name === "password") {
-      handlePasswordChange(e);
-    } else if (e.target.name === "name") {
-      handleNameChange(e);
-    }
+    if (!/.*[a-z].*/.test(event.target.value)) errors.push("Must contain at least one lower case letter");
+    if (!/.*[A-Z].*/.test(event.target.value)) errors.push("Must contain at least one upper case letter");
+    if (!/.*\d.*/.test(event.target.value)) errors.push("Must contain at least one digit");
+    if (!/.{8,}/.test(event.target.value)) errors.push("Must be at least 8 characters long");
   }
 
   function handleNameChange(e) {
     setName(e.target.value);
     let errors = [];
-
-    checks.name.forEach((v) => {
-      v(e, errors);
-
-      // if (v === "required") {
-      //   if (e.target.value === "") {
-      //     errors.push("name is required");
-      //   }
-      // }
-    });
-    if (errors.length === 0) {
-      setIsNameError(false);
-    } else {
-      setIsNameError(true);
-    }
+    if (!e.target.value.trim()) errors.push("Name is required");
+    setIsNameError(errors.length !== 0);
     setNameErrors(errors);
-  }
-  function handlePasswordChange(e) {
-    setPassword(e.target.value);
-    let errors = [];
-
-    checks.password.forEach((v) => {
-      v(e, errors);
-    });
-    if (errors.length === 0) {
-      setIsPasswordError(false);
-    } else {
-      setIsPasswordError(true);
-    }
-    setPasswordErrors(errors);
   }
 
   function handleEmailChange(e) {
     setEmail(e.target.value);
-
     let errors = [];
-
-    checks.email.forEach((v) => {
-      v(e, errors);
-    });
-    if (errors.length !== 0) {
-      setIsEmailError(true);
-    } else {
-      setIsEmailError(false);
-    }
+    if (!e.target.value.trim()) errors.push("Email is required");
+    else checkEmailFormat(e, errors);
+    setIsEmailError(errors.length !== 0);
     setEmailErrors(errors);
   }
 
+  function handlePasswordChange(e) {
+    setPassword(e.target.value);
+    let errors = [];
+    if (!e.target.value.trim()) errors.push("Password is required");
+    else checkPasswordStrength(e, errors);
+    setIsPasswordError(errors.length !== 0);
+    setPasswordErrors(errors);
+  }
+
   async function handleSubmit() {
-    if (email === "" || password === "" || name === "") {
-      console.log(emailErrors);
-      if (email === "" && !emailErrors.includes("email is required")) {
-        setIsEmailError(true);
-        setEmailErrors([...emailErrors, "email is required"]);
-      }
-      if (password === "" && !passwordErrors.includes("password is required")) {
-        setIsPasswordError(true);
-        setPasswordErrors([...passwordErrors, "password is required"]);
-      }
-      if (name === "" && !nameErrors.includes("name is required")) {
-        setIsNameError(true);
-        setNameErrors([...passwordErrors, "name is required"]);
-      }
+    let nErrors = [];
+    let eErrors = [];
+    let pErrors = [];
+
+    if (!name.trim()) {
+      nErrors.push("Name is required");
+      setIsNameError(true);
+    }
+    if (!email.trim()) {
+      eErrors.push("Email is required");
+      setIsEmailError(true);
+    }
+    if (!password.trim()) {
+      pErrors.push("Password is required");
+      setIsPasswordError(true);
+    }
+
+    if (nErrors.length > 0 || eErrors.length > 0 || pErrors.length > 0) {
+      setNameErrors(nErrors);
+      setEmailErrors(eErrors);
+      setPasswordErrors(pErrors);
       return;
     }
-    if (
-      emailErrors.length !== 0 ||
-      passwordErrors.length !== 0 ||
-      nameErrors.length !== 0
-    ) {
-      console.log("cannot call error is there");
-      return;
-    }
-    console.log("submitted", name, email, password);
+
+    if (emailErrors.length !== 0 || passwordErrors.length !== 0 || nameErrors.length !== 0) return;
 
     let headersList = {
       "Content-Type": "application/json",
@@ -354,8 +279,6 @@ const StudentView = () => {
     };
 
     let bodyContent = JSON.stringify({ name, email, password });
-
-    let data;
     try {
       let response = await fetch("http://localhost:8000/admin/student", {
         method: "POST",
@@ -363,201 +286,274 @@ const StudentView = () => {
         headers: headersList,
       });
 
-      data = await response.json();
+      let data = await response.json();
+      if (data.success) {
+        setSeverity("success");
+        setToastMessage(data.message || "Student created successfully");
+        handleOpenToast();
+        handleClose();
+        fetchStudent();
+      } else {
+        setSeverity("error");
+        setToastMessage(data.message || "Failed to create student");
+        handleOpenToast();
+      }
     } catch (e) {
-      setOpenToast(true);
-      setToastMessage("something went wrong");
       setSeverity("error");
-      handleClose();
+      setToastMessage("Something went wrong");
+      handleOpenToast();
     }
-
-    console.log(data);
-
-    if (data.success) {
-      console.log(data.result.length);
-
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("success");
-      handleClose();
-    } else {
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("error");
-      handleClose();
-    }
-    fetchStudent();
-    console.log(data);
   }
 
+  const filteredStudents = student.filter((s) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.email && s.email.toLowerCase().includes(q))
+    );
+  });
+
   return (
-    <div>
-      <Grid container spacing={5}>
-        <Grid item xs={9}>
-          {" "}
-          <Button
-            onClick={handleOpen}
-            variant="outlined"
-            startIcon={<AddIcon></AddIcon>}
-            sx={{ marginBottom: "10px", boxShadow: 6 }}
+    <Box>
+      {/* Top Header */}
+      <Box sx={{ mb: 4, display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>
+            Student Directory
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#64748B", mt: 0.5 }}>
+            View, register, and manage enrolled students across all institutional batches
+          </Typography>
+        </Box>
+
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddRoundedIcon />}
+          onClick={handleOpen}
+          sx={{
+            py: 1.2,
+            px: 2.5,
+            borderRadius: "12px",
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #0284C7 0%, #0EA5E9 100%)",
+          }}
+        >
+          Add Student
+        </Button>
+      </Box>
+
+      {/* KPI & Search */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
           >
-            Add Student
-          </Button>
-          <DisplayTable
-            columns={["name", "email", "action"]}
-            rows={student}
-            elevation={6}
-            handleEditOpen={handleEditOpen}
-            handleDeleteOpen={handleDeleteOpen}
-          ></DisplayTable>
+            <Box
+              sx={{
+                width: 52,
+                height: 52,
+                borderRadius: "14px",
+                backgroundColor: "#F0F9FF",
+                color: "#0284C7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <SchoolRoundedIcon sx={{ fontSize: 28 }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Total Students
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: "#0F172A", mt: 0.2 }}>
+                {noStudents}
+              </Typography>
+            </Box>
+          </Paper>
         </Grid>
-        <Grid item xs={3}>
-          <Stack sx={{ marginTop: "50px" }}>
-            <Card elevation={6}>
-              <Stack direction={"column"}>
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    Total Students
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {noStudents}
-                  </Typography>
-                </CardContent>
-              </Stack>
-            </Card>
-          </Stack>
+
+        <Grid item xs={12} sm={8}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              display: "flex",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <TextField
+              fullWidth
+              placeholder="Search students by name or email address..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRoundedIcon sx={{ color: "#94A3B8" }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: "12px" },
+              }}
+            />
+          </Paper>
         </Grid>
       </Grid>
 
+      {/* Modern Table */}
+      <DisplayTable
+        columns={["name", "email", "action"]}
+        rows={filteredStudents}
+        elevation={0}
+        handleEditOpen={handleEditOpen}
+        handleDeleteOpen={handleDeleteOpen}
+      />
+
+      {/* Add Modal */}
       <ModalForm
         open={open}
         handleClose={handleClose}
         handleSubmit={handleSubmit}
+        title="Add New Student"
       >
-        <TextField
-          error={isNameError ? true : false}
-          style={{ marginTop: "20px" }}
-          onChange={handleChange}
-          value={name}
-          id="standard-basic"
-          label="name*"
-          variant="standard"
-          fullWidth={true}
-          name="name"
-        />
-        {nameErrors.length !== 0 &&
-          nameErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
-        <TextField
-          error={isEmailError ? true : false}
-          style={{ marginTop: "20px" }}
-          onChange={handleChange}
-          value={email}
-          id="standard-basic"
-          label="email*"
-          variant="standard"
-          fullWidth={true}
-          name="email"
-        />
-        {emailErrors.length !== 0 &&
-          emailErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
-        <TextField
-          error={isPasswordError ? true : false}
-          onChange={handleChange}
-          value={password}
-          type="password"
-          id="standard-basic"
-          label="password*"
-          variant="standard"
-          fullWidth
-          name="password"
-          style={{ marginTop: "20px" }}
-        />
-        {passwordErrors.length !== 0 &&
-          passwordErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+              Student Full Name *
+            </Typography>
+            <TextField
+              fullWidth
+              name="name"
+              placeholder="e.g. Alex Johnson"
+              value={name}
+              onChange={handleNameChange}
+              error={isNameError}
+            />
+            {nameErrors.map((err, i) => (
+              <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                {err}
+              </Typography>
+            ))}
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+              Email Address *
+            </Typography>
+            <TextField
+              fullWidth
+              name="email"
+              placeholder="student@school.com"
+              value={email}
+              onChange={handleEmailChange}
+              error={isEmailError}
+            />
+            {emailErrors.map((err, i) => (
+              <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                {err}
+              </Typography>
+            ))}
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+              Initial Password *
+            </Typography>
+            <TextField
+              fullWidth
+              name="password"
+              type="password"
+              placeholder="••••••••••••"
+              value={password}
+              onChange={handlePasswordChange}
+              error={isPasswordError}
+            />
+            {passwordErrors.map((err, i) => (
+              <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                {err}
+              </Typography>
+            ))}
+          </Box>
+        </Stack>
       </ModalForm>
 
+      {/* Edit Form */}
       <EditForm
         open={edit}
         handleClose={handleEditClose}
         handleSubmit={handleEditSubmit}
+        title="Edit Student Profile"
       >
-        <TextField
-          error={isNameError ? true : false}
-          style={{ marginTop: "20px" }}
-          onChange={handleChange}
-          value={name}
-          id="standard-basic"
-          label="name*"
-          variant="standard"
-          fullWidth={true}
-          name="name"
-        />
-        {nameErrors.length !== 0 &&
-          nameErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
-        <TextField
-          value={email}
-          error={isEmailError ? true : false}
-          style={{ marginTop: "20px" }}
-          onChange={handleChange}
-          id="standard-basic"
-          label="email*"
-          variant="standard"
-          fullWidth={true}
-          name="email"
-        />
-        {emailErrors.length !== 0 &&
-          emailErrors.map((v, i) => {
-            return (
-              <div style={{ color: "red", marginTop: "5px" }} key={i}>
-                {" "}
-                {v}{" "}
-              </div>
-            );
-          })}
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+              Full Name *
+            </Typography>
+            <TextField
+              fullWidth
+              name="name"
+              value={name}
+              onChange={handleNameChange}
+              error={isNameError}
+            />
+            {nameErrors.map((err, i) => (
+              <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                {err}
+              </Typography>
+            ))}
+          </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+              Email Address *
+            </Typography>
+            <TextField
+              fullWidth
+              name="email"
+              value={email}
+              onChange={handleEmailChange}
+              error={isEmailError}
+            />
+            {emailErrors.map((err, i) => (
+              <Typography key={i} variant="caption" color="error" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                {err}
+              </Typography>
+            ))}
+          </Box>
+        </Stack>
       </EditForm>
 
+      {/* Delete Dialog */}
       <DeleteModel
         open={deleTeOpen}
         handleDeleteClose={handleDeleteClose}
         handleDeleteSubmit={handleDeleteSubmit}
-      ></DeleteModel>
+        title="Delete Student"
+        message="Are you sure you want to remove this student from the platform?"
+      />
 
       <Toastify
-        handleOpen={handleOpenToast}
+        open={openToast}
         handleClose={handleCloseToast}
         message={toastMessage}
         severity={severity}
-        open={openToast}
-      ></Toastify>
-    </div>
+      />
+    </Box>
   );
 };
 

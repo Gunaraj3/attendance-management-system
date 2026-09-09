@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Button,
   FormControl,
@@ -5,77 +7,69 @@ import {
   MenuItem,
   Paper,
   Select,
-  Stack,
+  Box,
+  Typography,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-
-import AddIcon from "@mui/icons-material/Add";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import { useAuth } from "../context/auth";
 import ModalForm from "./ModalForm";
 import Toastify from "./Toastify";
 import BatchTable from "./BatchTable";
 
 const TeacherBatch = () => {
-  const navigate = useNavigate();
   const { batchId } = useParams();
-
-  let [teachers, setTeachers] = useState([]);
-  let [teacher, setTeacher] = useState("");
-  const [open, setOpen] = React.useState(false);
-  let [batchTeacher, setBatchTeacher] = useState([]);
-  let [toastMessage, setToastMessage] = useState();
-  let [severity, setSeverity] = useState();
-  let [openToast, setOpenToast] = useState(false);
-
-  const handleOpenToast = () => {
-    setOpenToast(true);
-  };
-
-  const handleCloseToast = () => {
-    setOpenToast(false);
-  };
+  const [teachers, setTeachers] = useState([]);
+  const [teacher, setTeacher] = useState("");
+  const [open, setOpen] = useState(false);
+  const [batchTeacher, setBatchTeacher] = useState([]);
+  const [toastMessage, setToastMessage] = useState("");
+  const [severity, setSeverity] = useState("info");
+  const [openToast, setOpenToast] = useState(false);
 
   const user = useAuth();
 
+  const handleOpenToast = () => setOpenToast(true);
+  const handleCloseToast = () => setOpenToast(false);
+
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setTeacher("");
+    setOpen(false);
+  };
 
-  async function add(body) {
-    let headersList = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
-
-    let data;
+  async function add() {
+    if (!teacher) return;
     try {
+      let headersList = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
+
       let response = await fetch(
         "http://localhost:8000/admin/teacher/" + teacher + "/" + batchId,
         {
           method: "put",
-
           headers: headersList,
         }
       );
 
-      data = await response.json();
+      let data = await response.json();
+      if (data.success) {
+        setSeverity("success");
+        setToastMessage(data.message || "Teacher assigned successfully");
+        handleOpenToast();
+        fetchBatchTeacher();
+        handleClose();
+      } else {
+        setSeverity("error");
+        setToastMessage(data.message || "Failed to assign teacher");
+        handleOpenToast();
+      }
     } catch (e) {
-      setOpenToast(true);
-      setToastMessage("something went wrong");
       setSeverity("error");
+      setToastMessage("Something went wrong");
+      handleOpenToast();
     }
-    if (data.success) {
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("success");
-      fetchBatchTeacher();
-    } else {
-      setOpenToast(true);
-      setToastMessage(data.message);
-      setSeverity("error");
-    }
-    console.log("data is data man", "data");
-    handleClose();
   }
 
   const handleChange = (event) => {
@@ -83,87 +77,89 @@ const TeacherBatch = () => {
   };
 
   async function fetchTeacher() {
-    let headersList = {
-      "Content-type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
+    try {
+      let headersList = {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
 
-    let response = await fetch("http://localhost:8000/admin/teacher/", {
-      method: "GET",
-      headers: headersList,
-    });
+      let response = await fetch("http://localhost:8000/admin/teacher/", {
+        method: "GET",
+        headers: headersList,
+      });
 
-    let data = await response.json();
-    console.log(data);
-    if (data.success) {
-      setTeachers(data.result);
+      let data = await response.json();
+      if (data.success) {
+        setTeachers(data.result);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function fetchBatchTeacher() {
+    try {
+      let headersList = {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${user.token()}`,
+      };
+
+      let response = await fetch(
+        "http://localhost:8000/admin/teacher/batch/" + batchId,
+        {
+          method: "GET",
+          headers: headersList,
+        }
+      );
+
+      let data = await response.json();
+      if (data.success) {
+        setBatchTeacher(data.result);
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
   useEffect(() => {
     fetchTeacher();
-  }, []);
-  async function fetchBatchTeacher() {
-    let headersList = {
-      "Content-type": "application/json",
-      Authorization: `Bearer ${user.token()}`,
-    };
-
-    let response = await fetch(
-      "http://localhost:8000/admin/teacher/batch/" + batchId,
-      {
-        method: "GET",
-        headers: headersList,
-      }
-    );
-
-    let data = await response.json();
-    console.log(data);
-
-    setBatchTeacher(data.result);
-  }
-
-  useEffect(() => {
     fetchBatchTeacher();
-  }, []);
+  }, [batchId]);
 
-  function assignTeacher(e) {
-    console.log(e);
-    console.log(teacher);
+  function assignTeacher() {
     add();
   }
-  console.log("batch Teacher", batchTeacher);
 
   function handleUnassign(e, teacherId) {
     async function unassign() {
-      let headersList = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${user.token()}`,
-      };
+      try {
+        let headersList = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token()}`,
+        };
 
-      let response = await fetch(
-        `http://localhost:8000/admin/teacher/${teacherId}/${batchId}`,
-        {
-          method: "PATCH",
-          headers: headersList,
+        let response = await fetch(
+          `http://localhost:8000/admin/teacher/${teacherId}/${batchId}`,
+          {
+            method: "PATCH",
+            headers: headersList,
+          }
+        );
+        let json = await response.json();
+        if (json.success) {
+          fetchBatchTeacher();
+          setSeverity("success");
+          setToastMessage(json.message || "Teacher unassigned");
+          handleOpenToast();
+        } else {
+          setSeverity("error");
+          setToastMessage(json.message || "Failed to unassign");
+          handleOpenToast();
         }
-      );
-      let json = await response.json();
-      console.log("json betra", json);
-      console.log("heee");
-      console.log("json", json);
-      if (json.success) {
-        console.log("before teahcer is fetched again....");
-        fetchBatchTeacher();
-        setOpenToast(true);
-        setToastMessage(json.message);
-        setSeverity("success");
-        handleClose();
-      } else {
-        setOpenToast(true);
-        setToastMessage(json.message);
+      } catch (err) {
         setSeverity("error");
-        handleClose();
+        setToastMessage("Something went wrong");
+        handleOpenToast();
       }
     }
 
@@ -171,67 +167,77 @@ const TeacherBatch = () => {
   }
 
   return (
-    <div>
-      <Paper elevation={10} sx={{ padding: "15px" }}>
-        <Stack marginBottom={"10px"}>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon></AddIcon>}
-            onClick={(e) => handleOpen()}
-            sx={{ width: "fit-content" }}
-          >
-            Assign Teacher
-          </Button>
-        </Stack>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: "#0F172A" }}>
+            Assigned Instructors ({batchTeacher.length})
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#64748B" }}>
+            Teachers who have permissions to mark attendance for this batch
+          </Typography>
+        </Box>
 
-        <BatchTable
-          columns={["name", "email", "action"]}
-          rows={batchTeacher}
-          handleUnassign={handleUnassign}
-        ></BatchTable>
-      </Paper>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddRoundedIcon />}
+          onClick={handleOpen}
+          sx={{
+            py: 1,
+            px: 2.5,
+            borderRadius: "10px",
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)",
+          }}
+        >
+          Assign Teacher
+        </Button>
+      </Box>
+
+      <BatchTable
+        columns={["Name", "Email", "Actions"]}
+        rows={batchTeacher}
+        handleUnassign={handleUnassign}
+      />
 
       <ModalForm
         open={open}
         handleClose={handleClose}
         handleSubmit={assignTeacher}
+        title="Assign Instructor to Batch"
       >
-        <FormControl
-          variant="standard"
-          sx={{ m: 1, minWidth: 120 }}
-          fullWidth={true}
-        >
-          <InputLabel id="demo-simple-select-standard-label">
-            teacher
-          </InputLabel>
-          <Select
-            labelId="demo-simple-select-standard-label"
-            id="demo-simple-select-standard"
-            value={teacher}
-            onChange={handleChange}
-            label="Assign Teacher"
-          >
-            <MenuItem value="">
-              <em>None</em>
-            </MenuItem>
-            {teachers?.map((v, i) => {
-              return (
-                <MenuItem value={v._id}>
-                  {v.name} - {v.email}
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: "#334155", display: "block", mb: 0.8 }}>
+            Select Teacher *
+          </Typography>
+          <FormControl fullWidth>
+            <Select
+              value={teacher}
+              onChange={handleChange}
+              displayEmpty
+              sx={{ borderRadius: "10px" }}
+            >
+              <MenuItem value="" disabled>
+                <em>Select a teacher from the list</em>
+              </MenuItem>
+              {teachers?.map((v) => (
+                <MenuItem key={v._id} value={v._id}>
+                  {v.name} ({v.email})
                 </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </ModalForm>
+
       <Toastify
-        handleOpen={handleOpenToast}
+        open={openToast}
         handleClose={handleCloseToast}
         message={toastMessage}
         severity={severity}
-        open={openToast}
-      ></Toastify>
-    </div>
+      />
+    </Box>
   );
 };
 
