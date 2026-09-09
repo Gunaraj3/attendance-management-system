@@ -1,4 +1,6 @@
 import express, { json } from "express";
+import swaggerUi from "swagger-ui-express";
+import { swaggerDocument } from "./src/config/swagger.js";
 import { connectDb } from "./src/connectdb/connectdb.js";
 import { studentRouter } from "./src/Routes/studentRouter.js";
 import { teacherRouter } from "./src/Routes/teacherRouter.js";
@@ -27,10 +29,10 @@ const options = {
 };
 app.use(cors(options));
 app.use(json());
-// app.use((req,res,next)=>{
-//   console.log("Request Received:"+req.method+" "+req.url)
-//   next()
-// })
+
+// Swagger UI Documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 app.use("/", helperRouter);
 app.use("/teacher", teacherRouter);
 app.use("/student", studentRouter);
@@ -42,5 +44,6 @@ app.use(errorMiddleware);
 
 app.listen(PORT, () => {
   console.log(`app is listening at port number ${PORT}`);
-  console.log(`http://localhost:${PORT}/`);
+  console.log(`Server URL: http://localhost:${PORT}/`);
+  console.log(`Swagger Docs: http://localhost:${PORT}/api-docs`);
 });
